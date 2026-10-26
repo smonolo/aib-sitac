@@ -1,0 +1,13 @@
+---
+description: Keep AIB SITAC docs and smnl.dev marketing in sync with product changes
+alwaysApply: true
+---
+
+# Docs & site sync
+
+After any change to product behavior, UX, permissions, privacy, map/events/rooms, or release notes — **before finishing** — update every affected surface:
+
+1. **Repo markdown**: `README.md`, `PRIVACY.md`, `TERMS.md`, `AGENTS.md`, and any other `*.md` that describes the changed behavior.
+2. **Public site** (if available locally): `../mono-lo-repo/apps/site` — especially `aib-sitac/` (`pages/aib-sitac/`, `layouts/aib-sitac.vue`, `utils/aib-sitac-copy.ts`). If that path is missing, skip and say so briefly.
+
+Keep IT/EN copy aligned. Preserve unofficial volunteer framing (no institutional affiliation).

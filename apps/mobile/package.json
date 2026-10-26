@@ -1,0 +1,9 @@
+{
+  "name": "@aib-sitac/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reserved workspace for a future Expo app. Not built in v1 — see README.md.",
+  "scripts": {
+    "typecheck": "node -e \"console.log('apps/mobile reserved — no typecheck yet')\""
+  }
+}
