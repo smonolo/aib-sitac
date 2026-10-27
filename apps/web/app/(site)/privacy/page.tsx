@@ -4,11 +4,16 @@ export default function PrivacyPage() {
   const c = t()
 
   return (
-    <article className="mx-auto max-w-[700px] space-y-4">
-      <h1 className="text-[26px] leading-tight font-bold tracking-[-0.4px] text-aib-fg-inverse sm:text-[28px]">
-        {c.privacyHeading}
-      </h1>
-      <p className="text-[13px] text-aib-muted-dark">{c.privacyUpdated}</p>
+    <article className="mx-auto max-w-[700px] space-y-8">
+      <header className="space-y-3">
+        <h1 className="text-[26px] leading-tight font-bold tracking-[-0.4px] text-aib-fg-inverse sm:text-[28px]">
+          {c.privacyHeading}
+        </h1>
+        <p className="text-[13px] font-medium text-aib-muted-dark">
+          {c.privacyUpdated}
+        </p>
+      </header>
+
       <div className="space-y-3.5 text-[15px] leading-relaxed text-aib-muted-dark">
         <p>
           AIB SITAC è uno strumento indipendente e non ufficiale per mappe di
@@ -16,10 +21,16 @@ export default function PrivacyPage() {
           Civile, Vigili del Fuoco, Regione Lombardia o altre istituzioni
           pubbliche.
         </p>
-        <ul className="list-disc space-y-1 pl-5">
+      </div>
+
+      <section className="space-y-3">
+        <h2 className="text-[17px] font-semibold text-aib-fg-inverse">
+          In sintesi
+        </h2>
+        <ul className="list-disc space-y-2 pl-5 text-[15px] leading-relaxed text-aib-muted-dark">
           <li>
-            Metadati dell’intervento e lo storico eventi (segni) sono salvati
-            nel database PostgreSQL del prodotto quando crei o apri una stanza.
+            Metadati dell’intervento e lo storico eventi (segni) sono salvati nel
+            database PostgreSQL del prodotto quando crei o apri una stanza.
           </li>
           <li>
             Niente account in v1: l’accesso è il link dell’intervento e, se
@@ -29,29 +40,31 @@ export default function PrivacyPage() {
           <li>Nessun SDK analytics incluso di default.</li>
           <li>
             Il nome visualizzato opzionale (icona utente in alto) resta nella
-            memoria locale del browser — niente account.
+            memoria locale del browser; quando segni la mappa viene copiato
+            sull’evento.
           </li>
           <li>
             Export (GeoJSON / PNG) e link condivisi escono dall’app secondo le
             regole degli strumenti in cui li salvi o inoltri.
           </li>
         </ul>
-        <p>
-          Contatto:{' '}
-          <a href="mailto:stefano@smnl.dev" className="aib-link">
-            stefano@smnl.dev
-          </a>{' '}
-          ·{' '}
-          <a
-            href="https://smnl.dev/aib-sitac/privacy"
-            className="aib-link"
-            target="_blank"
-            rel="noreferrer"
-          >
-            smnl.dev/aib-sitac/privacy
-          </a>
-        </p>
-      </div>
+      </section>
+
+      <p className="text-[15px] leading-relaxed text-aib-muted-dark">
+        Contatto:{' '}
+        <a href="mailto:stefano@smnl.dev" className="aib-link">
+          stefano@smnl.dev
+        </a>{' '}
+        ·{' '}
+        <a
+          href="https://smnl.dev/aib-sitac/privacy"
+          className="aib-link"
+          target="_blank"
+          rel="noreferrer"
+        >
+          smnl.dev/aib-sitac/privacy
+        </a>
+      </p>
     </article>
   )
 }

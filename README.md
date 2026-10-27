@@ -8,7 +8,7 @@ Independent, unofficial **tactical situation map (SITAC)** for wildfires / **inc
 
 License: [PolyForm Noncommercial 1.0.0](./LICENSE) · UI: Italian · timestamps: `Europe/Rome`
 
-Marketing / privacy / terms: [smnl.dev/aib-sitac](https://smnl.dev/aib-sitac)
+App: [aib-sitac.smnl.dev](https://aib-sitac.smnl.dev) · Marketing: [smnl.dev/aib-sitac](https://smnl.dev/aib-sitac) ([Guida](https://smnl.dev/aib-sitac/guide) · [Privacy](https://smnl.dev/aib-sitac/privacy) · [Termini](https://smnl.dev/aib-sitac/terms))
 
 ## Features (v1)
 
@@ -73,8 +73,9 @@ npm test
 
 ## Production topology
 
-- **Web** → Vercel (`apps/web`); set `NEXT_PUBLIC_API_URL` to the public API origin
-- **API** → long-running Nest host (Fly, Railway, Render, Cloud Run, VPS); set `DATABASE_URL`, explicit `CORS_ORIGIN` (required in production), and `TRUST_PROXY=1` when behind a reverse proxy
+- **Web** → Vercel (`apps/web`) at `https://aib-sitac.smnl.dev`; set `NEXT_PUBLIC_API_URL` to the public API origin
+- **API** → long-running Nest host (Fly, Railway, Render, Cloud Run, VPS); set `DATABASE_URL`, `CORS_ORIGIN=https://aib-sitac.smnl.dev` (required in production), and `TRUST_PROXY=1` when behind a reverse proxy
+- **Marketing** → `https://smnl.dev/aib-sitac` (site layer in mono-lo-repo; app CTA via `NUXT_PUBLIC_AIB_SITAC_APP_URL`)
 - **DB** → managed PostgreSQL; schema applied automatically on API startup from `apps/api/sql/schema.sql`
 
 API hardening (no UX change for normal use): passphrase hashing (async scrypt), attempt rate limits, UUID param checks, strict event payloads (mark add/remove only; server timestamps), JSON body size cap, per-route rate limits, SSE connection caps, security headers.

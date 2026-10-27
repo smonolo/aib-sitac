@@ -26,7 +26,7 @@ Expo/React Native is **out of scope for v1**. This monorepo is a **website-first
 - Domain logic in `packages/core` (no React, no Nest).
 - Persistence only in `apps/api` + Postgres — not Next Route Handlers.
 - MapLibre is client-only in `apps/web`.
-- Local: Docker Compose (`db` / `api` / `web` subsettable). Production: web on Vercel, Nest on a separate host, remote Postgres.
+- Local: Docker Compose (`db` / `api` / `web` subsettable). Production: app at `aib-sitac.smnl.dev` (Vercel web + Nest API + remote Postgres); marketing at `smnl.dev/aib-sitac`.
 
 ## Commands
 
