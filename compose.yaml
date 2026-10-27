@@ -14,7 +14,7 @@ services:
   api:
     build:
       context: .
-      target: api
+      dockerfile: apps/api/Dockerfile
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${API_PORT:-4000}
@@ -26,7 +26,7 @@ services:
   web:
     build:
       context: .
-      target: web
+      dockerfile: apps/web/Dockerfile
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: ${WEB_PORT:-3000}

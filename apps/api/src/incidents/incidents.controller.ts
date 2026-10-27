@@ -16,7 +16,7 @@ import {
 import type { Request } from 'express'
 import { z } from 'zod'
 import { RateLimiter, clientIp, tooManyRequests } from '../common/security'
-import { uuidParamSchema } from '../common/validation'
+import { parseUuidParam } from '../common/validation'
 import { IncidentsService } from './incidents.service'
 
 const createSchema = z
@@ -60,14 +60,6 @@ const listLimiter = new RateLimiter(120, 60_000)
 const getLimiter = new RateLimiter(120, 60_000)
 const mutateLimiter = new RateLimiter(30, 60_000)
 
-function parseUuid(id: string): string {
-  const parsed = uuidParamSchema.safeParse(id)
-  if (!parsed.success) {
-    throw new HttpException('Not found', HttpStatus.NOT_FOUND)
-  }
-  return parsed.data
-}
-
 @Controller('incidents')
 export class IncidentsController {
   constructor(
@@ -103,7 +95,7 @@ export class IncidentsController {
   ) {
     const ip = clientIp(req)
     if (!getLimiter.check(ip)) throw tooManyRequests()
-    return this.incidents.getAuthorized(parseUuid(id), passphrase, ip)
+    return this.incidents.getAuthorized(parseUuidParam(id), passphrase, ip)
   }
 
   @Patch(':id')
@@ -119,7 +111,12 @@ export class IncidentsController {
     if (!parsed.success) {
       throw new HttpException('Invalid body', HttpStatus.BAD_REQUEST)
     }
-    return this.incidents.update(parseUuid(id), passphrase, parsed.data, ip)
+    return this.incidents.update(
+      parseUuidParam(id),
+      passphrase,
+      parsed.data,
+      ip
+    )
   }
 
   @Delete(':id')
@@ -130,7 +127,7 @@ export class IncidentsController {
   ) {
     const ip = clientIp(req)
     if (!mutateLimiter.check(ip)) throw tooManyRequests()
-    await this.incidents.delete(parseUuid(id), passphrase, ip)
+    await this.incidents.delete(parseUuidParam(id), passphrase, ip)
     return { ok: true }
   }
 }

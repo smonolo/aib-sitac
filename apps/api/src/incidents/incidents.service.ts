@@ -9,6 +9,7 @@ import {
 import { and, count, desc, eq, ilike, sql, type SQL } from 'drizzle-orm'
 import {
   DEFAULT_CENTER,
+  ROME_TZ,
   type ListIncidentsQuery,
   type ListIncidentsResult,
   type SitacIncident,
@@ -21,8 +22,6 @@ import {
   tooManyRequests,
   verifyPassphrase,
 } from '../common/security'
-
-export type { ListIncidentsQuery, ListIncidentsResult }
 
 function toIncident(row: IncidentRow): SitacIncident {
   return {
@@ -84,13 +83,13 @@ export class IncidentsService {
 
     if (query.from) {
       filters.push(
-        sql`(${incidents.createdAt} AT TIME ZONE 'Europe/Rome')::date >= ${query.from}::date`
+        sql`(${incidents.createdAt} AT TIME ZONE ${ROME_TZ})::date >= ${query.from}::date`
       )
     }
 
     if (query.to) {
       filters.push(
-        sql`(${incidents.createdAt} AT TIME ZONE 'Europe/Rome')::date <= ${query.to}::date`
+        sql`(${incidents.createdAt} AT TIME ZONE ${ROME_TZ})::date <= ${query.to}::date`
       )
     }
 

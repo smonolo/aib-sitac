@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import { asc, eq } from 'drizzle-orm'
 import type {
   DeleteFeaturePayload,
@@ -56,13 +56,6 @@ export class EventsService {
     ip?: string
   ): Promise<SitacEvent> {
     await this.incidents.assertAccess(incidentId, passphrase, ip)
-
-    if (input.op !== 'upsert_feature' && input.op !== 'delete_feature') {
-      throw new BadRequestException('Invalid event op')
-    }
-    if (!input.payload || typeof input.payload !== 'object') {
-      throw new BadRequestException('Invalid payload')
-    }
 
     const [row] = await getDb()
       .insert(events)

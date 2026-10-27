@@ -23,7 +23,7 @@ import {
 import {
   appendEventSchema,
   assertPayloadSize,
-  uuidParamSchema,
+  parseUuidParam,
 } from '../common/validation'
 import { IncidentsService } from '../incidents/incidents.service'
 import { incidentEventBus } from './bus'
@@ -34,14 +34,6 @@ const listLimiter = new RateLimiter(180, 60_000)
 const sseConnectLimiter = new RateLimiter(30, 60_000)
 const sseByIp = new ConnectionTracker(20)
 const sseByRoom = new ConnectionTracker(50)
-
-function parseUuid(id: string): string {
-  const parsed = uuidParamSchema.safeParse(id)
-  if (!parsed.success) {
-    throw new HttpException('Not found', HttpStatus.NOT_FOUND)
-  }
-  return parsed.data
-}
 
 @Controller('incidents/:incidentId/events')
 export class EventsController {
@@ -56,7 +48,7 @@ export class EventsController {
     @Headers('x-passphrase') passphrase: string | undefined,
     @Req() req: Request
   ) {
-    const id = parseUuid(incidentId)
+    const id = parseUuidParam(incidentId)
     const ip = clientIp(req)
     if (!listLimiter.check(`${ip}:${id}`)) throw tooManyRequests()
     return this.events.list(id, passphrase, ip)
@@ -69,7 +61,7 @@ export class EventsController {
     @Headers('x-passphrase') passphrase: string | undefined,
     @Req() req: Request
   ) {
-    const id = parseUuid(incidentId)
+    const id = parseUuidParam(incidentId)
     const ip = clientIp(req)
     if (!appendLimiter.check(`${ip}:${id}`)) throw tooManyRequests()
 
@@ -102,7 +94,7 @@ export class EventsController {
     @Headers('x-passphrase') passphrase: string | undefined,
     @Req() req: Request
   ): Promise<Observable<MessageEvent>> {
-    const id = parseUuid(incidentId)
+    const id = parseUuidParam(incidentId)
     const ip = clientIp(req)
     if (!sseConnectLimiter.check(`${ip}:${id}`)) throw tooManyRequests()
 

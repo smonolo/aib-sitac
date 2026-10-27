@@ -42,7 +42,7 @@ cp .env.example .env
 npm ci
 ```
 
-All config is the root `.env` (gitignored). `Dockerfile` has targets `api` and `web`. `compose.yaml` has services `db`, `api`, `web` — start any subset.
+All config is the root `.env` (gitignored). Each app has its own Dockerfile (`apps/api`, `apps/web`). `compose.yaml` has services `db`, `api`, `web` — start any subset.
 
 ## Local development
 

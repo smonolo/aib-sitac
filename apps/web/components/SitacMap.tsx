@@ -16,7 +16,6 @@ import {
   Settings,
 } from 'lucide-react'
 import {
-  ANNOTATION_SYMBOL_IDS,
   SYMBOL_CATALOG,
   featuresToGeoJson,
   foldFeatures,
@@ -67,9 +66,7 @@ const SYMBOL_ICON_URLS = Object.fromEntries(
   SYMBOL_CATALOG.map(s => [s.id, symbolIconDataUrl(s.id, s.color)])
 ) as Record<SymbolId, string>
 
-const ANNOTATION_SYMBOLS = SYMBOL_CATALOG.filter(s =>
-  (ANNOTATION_SYMBOL_IDS as readonly string[]).includes(s.id)
-)
+const ANNOTATION_SYMBOLS = SYMBOL_CATALOG.filter(s => isAnnotationSymbol(s.id))
 const TACTICAL_SYMBOLS = SYMBOL_CATALOG.filter(s => !isAnnotationSymbol(s.id))
 
 type Props = {

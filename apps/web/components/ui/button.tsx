@@ -9,22 +9,16 @@ const buttonVariants = cva(
       variant: {
         default:
           'bg-aib-surface-muted text-aib-fg hover:opacity-70 dark:bg-aib-surface-muted-dark dark:text-aib-fg-inverse',
-        secondary:
-          'bg-aib-surface text-aib-fg ring-1 ring-inset ring-aib-border hover:opacity-70 dark:bg-aib-surface-dark dark:text-aib-fg-inverse dark:ring-aib-border-dark',
         ghost:
           'bg-transparent text-aib-muted hover:opacity-70 dark:text-aib-muted-dark',
         quiet:
           'justify-start bg-transparent text-aib-track-idle hover:opacity-70 dark:text-aib-track-idle-dark',
         destructive: 'bg-aib-brand text-aib-fg-inverse hover:opacity-70',
-        link: 'bg-transparent text-aib-fg underline underline-offset-2 hover:opacity-70 dark:text-aib-fg-inverse',
       },
       size: {
         default: 'min-h-[52px] rounded-aib px-3',
         sm: 'min-h-9 rounded-aib-sm px-2.5 text-[13px]',
         xs: 'min-h-7 rounded-aib-sm px-2 text-[12px] font-medium',
-        lg: 'min-h-[52px] rounded-aib px-4',
-        icon: 'size-10 rounded-full',
-        'icon-sm': 'size-9 rounded-full',
       },
     },
     defaultVariants: {
@@ -49,4 +43,4 @@ function Button({
   )
 }
 
-export { Button, buttonVariants }
+export { Button }

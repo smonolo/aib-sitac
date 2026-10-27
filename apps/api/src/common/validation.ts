@@ -1,7 +1,16 @@
+import { HttpException, HttpStatus } from '@nestjs/common'
 import { z } from 'zod'
 import { SYMBOL_IDS } from '@aib-sitac/core'
 
 export const uuidParamSchema = z.string().uuid()
+
+export function parseUuidParam(id: string): string {
+  const parsed = uuidParamSchema.safeParse(id)
+  if (!parsed.success) {
+    throw new HttpException('Not found', HttpStatus.NOT_FOUND)
+  }
+  return parsed.data
+}
 
 const lonLatSchema = z.tuple([
   z.number().finite().min(-180).max(180),

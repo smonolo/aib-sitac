@@ -5,8 +5,6 @@ import type {
   SitacIncident,
 } from '@aib-sitac/core'
 
-export type { ListIncidentsQuery, ListIncidentsResult }
-
 export class ApiError extends Error {
   readonly status: number
 
@@ -32,7 +30,7 @@ function apiBase(): string {
   )
 }
 
-export type CreateIncidentInput = {
+type CreateIncidentInput = {
   title: string
   centerLng?: number
   centerLat?: number
@@ -104,7 +102,7 @@ export async function getIncident(
   return parseJson(res)
 }
 
-export type UpdateIncidentInput = {
+type UpdateIncidentInput = {
   title?: string
   passphrase?: string | null
 }
