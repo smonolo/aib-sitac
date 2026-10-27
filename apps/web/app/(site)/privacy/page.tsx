@@ -49,6 +49,10 @@ export default function PrivacyPage() {
             localStorage; quando segni la mappa viene copiato sull’evento.
           </li>
           <li>
+            Le tile della mappa arrivano da server HOT OSM / openstreetmap.fr,
+            che possono vedere IP e coordinate delle tile richieste.
+          </li>
+          <li>
             Export (GeoJSON / PNG) e link condivisi escono dall’app secondo le
             regole degli strumenti in cui li salvi o inoltri.
           </li>

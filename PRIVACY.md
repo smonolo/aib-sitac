@@ -13,6 +13,7 @@ Hosted policy URL: [smnl.dev/aib-sitac/privacy](https://smnl.dev/aib-sitac/priva
 - **No user accounts** in v1. Access is the intervento link, plus an optional password.
 - **No analytics SDK** is included by default.
 - Display name (navbar profile; no login) is stored in browser `localStorage` and, when you add or remove a mark, is copied onto that event in the room timeline.
+- Loading the map fetches raster tiles from Humanitarian OSM / openstreetmap.fr; that provider may see your IP and the tile coordinates you request.
 - After unlocking a protected room, the password is kept in browser `sessionStorage` for that room (cleared when the browser session ends); it is never put in the URL.
 
 ## Data processed
@@ -24,6 +25,7 @@ Hosted policy URL: [smnl.dev/aib-sitac/privacy](https://smnl.dev/aib-sitac/priva
 | Password hash (optional)                                               | Database                 | Protect edit/view access              |
 | Map events (geometry, symbols, notes, timestamps, optional actor name) | Database                 | Collaborative SITAC + timeline replay |
 | Optional display name (navbar profile; no login)                       | Browser `localStorage`   | Label on map events                   |
+| Map tile requests (zoom/x/y)                                           | HOT OSM tile servers     | Render the map background             |
 | Room password after unlock                                             | Browser `sessionStorage` | Re-open the room in the same session  |
 
 ## Access & room passwords

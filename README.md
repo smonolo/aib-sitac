@@ -55,11 +55,7 @@ npm run docker:up          # or run db + api + web all in Docker
 npm run docker:down
 ```
 
-`DATABASE_URL` host must match how the API runs:
-
-- API on the host → `localhost` (default in `.env.example`)
-- API in Compose with Compose `db` → use hostname `db`
-- External Postgres → your provider URL; do not start `db`
+`DATABASE_URL` is for the API on the **host** (`localhost` in `.env.example`). Compose **api** ignores that and talks to the `db` service (`@db`) unless you set `API_DATABASE_URL` (e.g. external Postgres in production — then do not start `db`).
 
 ```bash
 npm run typecheck
@@ -72,7 +68,7 @@ Same Compose file, pick what you need. This project typically:
 
 - **Web** → Vercel project Root Directory `apps/web` (install/build in `apps/web/vercel.json` build `@aib-sitac/core` first). Set `NEXT_PUBLIC_API_URL` to the public API origin
 - **API** → `docker compose up -d --build api` on the VM
-- **DB** → external Postgres via `DATABASE_URL`
+- **DB** → external Postgres via `API_DATABASE_URL` (Compose api service; leave `db` off)
 - **TLS** → whatever already runs on the VM (point it at `localhost:$API_PORT`)
 
 CORS and trust-proxy are hardcoded in the API. Schema migrations live in `apps/api/drizzle/` and are applied on API startup (Drizzle Kit). Existing DBs that already have tables are baselined automatically so only new migrations run.
