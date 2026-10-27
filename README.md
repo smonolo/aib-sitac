@@ -42,58 +42,40 @@ cp .env.example .env
 npm ci
 ```
 
-One gitignored `.env` at the repo root drives Compose, the API, and the web app. Ports (`API_PORT`, `WEB_PORT`, `POSTGRES_PORT`), `DATABASE_URL`, and API URL vars all live there.
+All config is the root `.env` (gitignored). `Dockerfile` has targets `api` and `web`. `compose.yaml` has services `db`, `api`, `web` — start any subset.
 
 ## Local development
 
-Mix and match — only Postgres needs Docker if you want; everything else can run on the host.
-
 ```bash
-# Database only, then API + web on the host
-docker compose up -d db
-npm run dev:api
-npm run dev:web
+docker compose up -d db    # Postgres
+npm run dev:api            # Nest on the host
+npm run dev:web            # Next on the host
 
-# Full stack in Docker (db + api + web)
-npm run docker:up
-
-# API image + Compose db (web on the host)
-docker compose up -d --build db api
-npm run dev:web
-
-# Tear down
+npm run docker:up          # or run db + api + web all in Docker
 npm run docker:down
 ```
 
-Point `DATABASE_URL` at `localhost` when the API runs on the host, or at host `db` when the API runs in Compose against the Compose Postgres. For an external database, set `DATABASE_URL` to that URL and skip the `db` service.
+`DATABASE_URL` host must match how the API runs:
 
-### Checks
+- API on the host → `localhost` (default in `.env.example`)
+- API in Compose with Compose `db` → use hostname `db`
+- External Postgres → your provider URL; do not start `db`
 
 ```bash
 npm run typecheck
 npm test
 ```
 
-## Production / hosting
+## Production
 
-There is no fixed topology — use the same Compose file and `.env` with whatever subset you need.
+Same Compose file, pick what you need. This project typically:
 
-Typical layout used for this project:
+- **Web** → Vercel; set `NEXT_PUBLIC_API_URL` to the public API origin
+- **API** → `docker compose up -d --build api` on the VM
+- **DB** → external Postgres via `DATABASE_URL`
+- **TLS** → whatever already runs on the VM (point it at `localhost:$API_PORT`)
 
-- **Web** → Vercel (`apps/web`); set `NEXT_PUBLIC_API_URL` (and optionally `API_URL`) to the public API origin
-- **API** → Oracle VM (or any host) via Docker: `docker compose up -d --build api`
-- **DB** → external Postgres (`DATABASE_URL`); do not start the `db` service
-- **TLS / routing** → Cloudflare Tunnel: set `TUNNEL_TOKEN`, then  
-  `docker compose --profile tunnel up -d api tunnel`  
-  Public hostname service URL: `http://api:${API_PORT}` (Docker DNS)
-
-You can also run **db + api + web** (and tunnel) all on one machine with the same Compose file if you prefer a self-contained deploy.
-
-- `Dockerfile` — multi-stage targets `api` and `web`
-- `compose.yaml` — services `db`, `api`, `web`, and optional `tunnel`
-- Schema `aib_sitac` is applied on API startup from `apps/api/sql/schema.sql`
-
-CORS defaults to `https://aib-sitac.smnl.dev` plus `localhost` / `127.0.0.1` on `WEB_PORT`. Add more with `CORS_ORIGINS` (comma-separated). Trust proxy is on when `NODE_ENV=production`.
+CORS and trust-proxy are hardcoded in the API. Schema `aib_sitac` is applied on startup from `apps/api/sql/schema.sql`.
 
 ## Privacy notes
 

@@ -21,17 +21,14 @@ export function isPassphraseError(err: unknown): boolean {
   return err instanceof ApiError && (err.status === 401 || err.status === 403)
 }
 
-function defaultApiBase(): string {
-  const port = process.env.API_PORT ?? '4000'
-  return `http://localhost:${port}`
-}
-
 function apiBase(): string {
   if (typeof window !== 'undefined') {
-    return process.env.NEXT_PUBLIC_API_URL ?? defaultApiBase()
+    return process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'
   }
   return (
-    process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? defaultApiBase()
+    process.env.API_URL ??
+    process.env.NEXT_PUBLIC_API_URL ??
+    'http://localhost:4000'
   )
 }
 

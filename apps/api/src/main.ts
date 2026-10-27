@@ -9,22 +9,13 @@ import {
   securityHeadersMiddleware,
 } from './common/security'
 
-loadEnv({ path: resolve(__dirname, '../../..', '.env') })
-loadEnv({ path: resolve(__dirname, '..', '.env'), override: true })
+loadEnv({ path: resolve(__dirname, '../../../.env') })
 
-function corsOrigins(): string[] {
-  const webPort = process.env.WEB_PORT ?? '3000'
-  const defaults = [
-    'https://aib-sitac.smnl.dev',
-    `http://localhost:${webPort}`,
-    `http://127.0.0.1:${webPort}`,
-  ]
-  const extra = (process.env.CORS_ORIGINS ?? '')
-    .split(',')
-    .map(origin => origin.trim())
-    .filter(Boolean)
-  return [...new Set([...defaults, ...extra])]
-}
+const CORS_ORIGINS = [
+  'https://aib-sitac.smnl.dev',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+] as const
 
 const JSON_BODY_LIMIT = '256kb'
 
@@ -41,7 +32,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     bodyParser: false,
     cors: {
-      origin: corsOrigins(),
+      origin: [...CORS_ORIGINS],
       credentials: false,
       methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'X-Passphrase'],
@@ -57,7 +48,8 @@ async function bootstrap() {
   app.setGlobalPrefix('api')
   app.enableShutdownHooks()
 
-  await app.listen(Number(process.env.PORT ?? 4000), '0.0.0.0')
+  const port = Number(process.env.PORT ?? process.env.API_PORT ?? 4000)
+  await app.listen(port, '0.0.0.0')
 }
 
 bootstrap().catch(error => {
