@@ -7,7 +7,7 @@ Expo/React Native is **out of scope for v1**. This monorepo is a **website-first
 - **Public audience, operator-focused.** Anyone can open a room; day-to-day users are operators / sala / squad leads. Never imply membership or institutional affiliation.
 - **Unofficial.** No Protezione Civile / VVF / Regione logos or endorsement language.
 - **Event-sourced marks.** Every change is an append-only event with a timestamp and optional `actorLabel` (display name from local profile; required before placing/removing marks). Deletes are tombstones. Timeline scrubber = fold until `T` over **mark events** (`upsert_feature` / `delete_feature`) — one step per add/remove. Scrubbing writes `?step=N` (1-based) on the room URL; live clears it; **Copia link** copies the current URL including step. Legacy `named_snapshot` / `estimated` may exist in old rooms but are not exposed in the UI.
-- **Link rooms (+ optional password).** Product copy uses **intervento/interventi** (API still says incident). Home lists interventi with title search, date range (Europe/Rome), and pagination; opening a protected room still needs the password. On the map, the right sidebar can rename the intervento and set/remove the password (`PATCH /incidents/:id`). No org RBAC in v1. API: scrypt passphrase hashes, UUID params, strict mark-event payloads (no client `ts`), body/rate/SSE caps; CORS allowlist (`aib-sitac.smnl.dev` + local Next) and trust-proxy (when `NODE_ENV=production`) are hardcoded — no `CORS_ORIGIN` / `TRUST_PROXY` env. Env files are per app (`apps/web/.env*`, `apps/api/.env`); Vercel only gets web API URL vars; `DATABASE_URL` lives on the API host.
+- **Link rooms (+ optional password).** Product copy uses **intervento/interventi** (API still says incident). Home lists interventi with title search, date range (Europe/Rome), and pagination; opening a protected room still needs the password. On the map, the right sidebar can rename the intervento and set/remove the password (`PATCH /incidents/:id`). No org RBAC in v1. API: scrypt passphrase hashes, UUID params, strict mark-event payloads (no client `ts`), body/rate/SSE caps; CORS defaults (`aib-sitac.smnl.dev` + localhost/`127.0.0.1` on `WEB_PORT`) plus optional `CORS_ORIGINS`; trust-proxy when `NODE_ENV=production`. Single root `.env` (from `.env.example`) for Compose / API / web — never commit secrets.
   - **Camera family design system**, not Designers Italia / Titillium. Match AIB Camera app + `smnl.dev/aib-camera` tokens exactly:
     - **Dark mode only for now** (`class="dark"` on `<html>`; canvas inverse `#111111`, surface `#1A1A1A`, muted `#A3A3A3`).
     - Canvas `#F5F5F5` / inverse `#111111`, surface `#FFFFFF` / `#1A1A1A`, muted `#525252` / `#A3A3A3`, track + fg-inverted segmented controls, radii `12` / `16`.
@@ -26,17 +26,18 @@ Expo/React Native is **out of scope for v1**. This monorepo is a **website-first
 - Domain logic in `packages/core` (no React, no Nest).
 - Persistence only in `apps/api` + Postgres — not Next Route Handlers.
 - MapLibre is client-only in `apps/web`.
-- Local: Docker Compose (`db` / `api` / `web` subsettable). Production: app at `aib-sitac.smnl.dev` (Vercel web + Nest API + remote Postgres); marketing at `smnl.dev/aib-sitac`.
+- Hosting is elastic: one `compose.yaml` + root `Dockerfile` (`api` / `web` targets). Run any subset (`db`, `api`, `web`, optional `tunnel` profile). Production for this project is typically Vercel web + VM API + external Postgres + Cloudflare Tunnel; self-contained Compose (with `db`) remains supported. Marketing at `smnl.dev/aib-sitac`.
 
 ## Commands
 
 ```bash
 npm ci
-npm run dev:docker          # full stack in Docker
-npm run dev:docker:db       # Postgres only (:5432)
-npm run dev:docker:api      # db + api in Docker
-npm run dev:web             # Next on the host (pair with :db or :api)
-npm run dev:api             # Nest on the host (pair with :db)
+cp .env.example .env
+npm run dev:api             # host API (needs DATABASE_URL)
+npm run dev:web             # host Next
+docker compose up -d db     # Postgres only
+npm run docker:up           # db + api + web images
+docker compose --profile tunnel up -d api tunnel
 npm run typecheck
 npm test
 ```
