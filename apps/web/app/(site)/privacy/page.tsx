@@ -29,8 +29,8 @@ export default function PrivacyPage() {
         </h2>
         <ul className="list-disc space-y-2 pl-5 text-[15px] leading-relaxed text-aib-muted-dark">
           <li>
-            Metadati dell’intervento e lo storico eventi (segni) sono salvati nel
-            database PostgreSQL del prodotto quando crei o apri una stanza.
+            Metadati dell’intervento e lo storico eventi (segni) sono salvati
+            nel database PostgreSQL del prodotto quando crei o apri una stanza.
           </li>
           <li>
             Niente account in v1: l’accesso è il link dell’intervento e, se
