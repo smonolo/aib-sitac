@@ -9,24 +9,29 @@ Hosted policy URL: [smnl.dev/aib-sitac/privacy](https://smnl.dev/aib-sitac/priva
 ## Summary
 
 - Incident metadata and the append-only event log (marks) are stored in a **PostgreSQL database** operated for this product when you create or join a room.
+- The **home interventi list** (and the list API) is **public**: each room shows title, creation date (`Europe/Rome`), and whether it is password-protected. Opening a room and seeing map marks still requires the link and, if set, the password.
 - **No user accounts** in v1. Access is the intervento link, plus an optional password.
 - **No analytics SDK** is included by default.
-- Display name (navbar profile; no login) is stored in the browser and, when you add or remove a mark, is copied onto that event in the room timeline.
+- Display name (navbar profile; no login) is stored in browser `localStorage` and, when you add or remove a mark, is copied onto that event in the room timeline.
+- After unlocking a protected room, the password is kept in browser `sessionStorage` for that room (cleared when the browser session ends); it is never put in the URL.
 
 ## Data processed
 
-| Data                                                                   | Where           | Why                                   |
-| ---------------------------------------------------------------------- | --------------- | ------------------------------------- |
-| Incident title, map center                                             | Database        | Identify and open the room            |
-| Password hash (optional)                                               | Database        | Protect edit/view access              |
-| Map events (geometry, symbols, notes, timestamps, optional actor name) | Database        | Collaborative SITAC + timeline replay |
-| Optional display name (navbar profile; no login)                       | Browser storage | Label on map events                   |
+| Data                                                                   | Where                    | Why                                   |
+| ---------------------------------------------------------------------- | ------------------------ | ------------------------------------- |
+| Title, created date, “protected” flag (home list / list API)           | Database (+ public API)  | Discover and open rooms from home     |
+| Map center and initial zoom                                            | Database                 | Open the room at the right view       |
+| Password hash (optional)                                               | Database                 | Protect edit/view access              |
+| Map events (geometry, symbols, notes, timestamps, optional actor name) | Database                 | Collaborative SITAC + timeline replay |
+| Optional display name (navbar profile; no login)                       | Browser `localStorage`   | Label on map events                   |
+| Room password after unlock                                             | Browser `sessionStorage` | Re-open the room in the same session  |
 
 ## Access & room passwords
 
 - Open rooms (no password): anyone with the link can view and edit; live updates use Server-Sent Events.
-- Protected rooms: the password is sent only as an `X-Passphrase` HTTP header (never in the URL). The API stores a salted scrypt hash, not the password itself. Wrong-password attempts are rate-limited.
-- Optional display name stays in browser storage; when you mark the map it is copied onto that event as `actorLabel`.
+- Protected rooms: the password is sent only as an `X-Passphrase` HTTP header (never in the URL). The API stores a salted scrypt hash, not the password itself. Wrong-password attempts are rate-limited. Minimum length is 4 characters when set.
+- After unlock, the password stays in `sessionStorage` for that room until the browser session ends.
+- Optional display name stays in `localStorage`; when you mark the map it is copied onto that event as `actorLabel`.
 
 ## Sharing & exports
 

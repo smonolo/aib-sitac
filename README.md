@@ -84,4 +84,4 @@ npm run db:migrate    # optional; API startup also migrates
 
 ## Privacy notes
 
-Intervento geometry and history live in your database. Password is optional; rooms are listed on the home page. See [PRIVACY.md](./PRIVACY.md) and [TERMS.md](./TERMS.md).
+Intervento geometry and history live in your database. Password is optional; the home list (title, date, protected flag) is public. See [PRIVACY.md](./PRIVACY.md) and [TERMS.md](./TERMS.md).

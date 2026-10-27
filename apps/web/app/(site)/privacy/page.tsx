@@ -33,15 +33,20 @@ export default function PrivacyPage() {
             nel database PostgreSQL del prodotto quando crei o apri una stanza.
           </li>
           <li>
+            L’elenco interventi in home è pubblico (titolo, data Europe/Rome, se
+            protetto); aprire la mappa resta vincolato al link e, se impostata,
+            alla password.
+          </li>
+          <li>
             Niente account in v1: l’accesso è il link dell’intervento e, se
             impostata, la password (solo header HTTP, mai nell’URL; l’API
-            conserva un hash e limita i tentativi errati).
+            conserva un hash e limita i tentativi errati). Dopo lo sblocco la
+            password resta in sessionStorage per quella stanza.
           </li>
           <li>Nessun SDK analytics incluso di default.</li>
           <li>
-            Il nome visualizzato opzionale (icona utente in alto) resta nella
-            memoria locale del browser; quando segni la mappa viene copiato
-            sull’evento.
+            Il nome visualizzato opzionale (icona utente in alto) resta in
+            localStorage; quando segni la mappa viene copiato sull’evento.
           </li>
           <li>
             Export (GeoJSON / PNG) e link condivisi escono dall’app secondo le
