@@ -1,6 +1,6 @@
 # Privacy Policy — AIB SITAC
 
-**Last updated:** 26 October 2026
+**Last updated:** 27 October 2026
 
 AIB SITAC is an independent, unofficial web app for tactical wildfire (incendio boschivo) situation maps. It is open to anyone and is **not** affiliated with Protezione Civile, Vigili del Fuoco, Regione Lombardia, or any other public institution.
 
@@ -8,19 +8,25 @@ Hosted policy URL: [smnl.dev/aib-sitac/privacy](https://smnl.dev/aib-sitac/priva
 
 ## Summary
 
-- Incident metadata and the append-only event log (marks, snapshots) are stored in a **PostgreSQL database** operated for this product when you create or join a room.
-- **No user accounts** in v1. Access is the incident link, plus an optional passphrase.
+- Incident metadata and the append-only event log (marks) are stored in a **PostgreSQL database** operated for this product when you create or join a room.
+- **No user accounts** in v1. Access is the intervento link, plus an optional password.
 - **No analytics SDK** is included by default.
-- UI language and optional display name are stored in the browser (local/session storage).
+- Display name (navbar profile; no login) is stored in the browser and, when you add or remove a mark, is copied onto that event in the room timeline.
 
 ## Data processed
 
-| Data                                                                    | Where           | Why                                   |
-| ----------------------------------------------------------------------- | --------------- | ------------------------------------- |
-| Incident title, map center                                              | Database        | Identify and open the room            |
-| Passphrase hash (optional)                                              | Database        | Protect edit/view access              |
-| Map events (geometry, symbols, notes, timestamps, optional actor label) | Database        | Collaborative SITAC + timeline replay |
-| Locale / actor label                                                    | Browser storage | UI preference                         |
+| Data                                                                   | Where           | Why                                   |
+| ---------------------------------------------------------------------- | --------------- | ------------------------------------- |
+| Incident title, map center                                             | Database        | Identify and open the room            |
+| Password hash (optional)                                               | Database        | Protect edit/view access              |
+| Map events (geometry, symbols, notes, timestamps, optional actor name) | Database        | Collaborative SITAC + timeline replay |
+| Optional display name (navbar profile; no login)                       | Browser storage | Label on map events                   |
+
+## Access & room passwords
+
+- Open rooms (no password): anyone with the link can view and edit; live updates use Server-Sent Events.
+- Protected rooms: the password is sent only as an `X-Passphrase` HTTP header (never in the URL). The API stores a salted scrypt hash, not the password itself. Wrong-password attempts are rate-limited.
+- Optional display name stays in browser storage; when you mark the map it is copied onto that event as `actorLabel`.
 
 ## Sharing & exports
 

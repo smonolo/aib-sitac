@@ -1,18 +1,9 @@
-import type { Locale } from './i18n'
+import { ROME_TZ } from '@aib-sitac/core'
 
-const LOCALE_KEY = 'aib-sitac-locale'
 const ACTOR_KEY = 'aib-sitac-actor'
 
 function passKey(incidentId: string): string {
   return `aib-sitac-pass:${incidentId}`
-}
-
-export function readLocale(): Locale {
-  return (window.localStorage.getItem(LOCALE_KEY) as Locale) || 'it'
-}
-
-export function writeLocale(locale: Locale): void {
-  window.localStorage.setItem(LOCALE_KEY, locale)
 }
 
 export function readActor(): string {
@@ -20,7 +11,16 @@ export function readActor(): string {
 }
 
 export function writeActor(actor: string): void {
-  window.localStorage.setItem(ACTOR_KEY, actor)
+  const trimmed = actor.trim()
+  if (!trimmed) {
+    window.localStorage.removeItem(ACTOR_KEY)
+    return
+  }
+  window.localStorage.setItem(ACTOR_KEY, trimmed)
+}
+
+export function clearActor(): void {
+  window.localStorage.removeItem(ACTOR_KEY)
 }
 
 export function readPassphrase(incidentId: string): string | null {
@@ -31,8 +31,10 @@ export function writePassphrase(incidentId: string, passphrase: string): void {
   window.sessionStorage.setItem(passKey(incidentId), passphrase)
 }
 
-export function formatTs(iso: string, locale: Locale): string {
-  return new Date(iso).toLocaleString(locale === 'it' ? 'it-IT' : 'en-GB', {
-    timeZone: 'Europe/Rome',
-  })
+export function clearPassphrase(incidentId: string): void {
+  window.sessionStorage.removeItem(passKey(incidentId))
+}
+
+export function formatTs(iso: string): string {
+  return new Date(iso).toLocaleString('it-IT', { timeZone: ROME_TZ })
 }

@@ -4,12 +4,23 @@ const SIZE = 64
 
 function svg(body: string, color: string): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">
-  <circle cx="32" cy="32" r="30" fill="${color}" stroke="#ffffff" stroke-width="3"/>
+  <rect x="2" y="2" width="60" height="60" rx="10" ry="10" fill="${color}" stroke="#ffffff" stroke-width="1.5"/>
   ${body}
 </svg>`
 }
 
 const ICON_BODY: Record<SymbolId, (color: string) => string> = {
+  arrow: c =>
+    svg(
+      `<path d="M16 32 H40" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
+       <path d="M34 20 L48 32 L34 44" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>`,
+      c
+    ),
+  shape: c =>
+    svg(
+      `<path d="M18 40 L24 20 L40 18 L46 36 L32 46 Z" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round"/>`,
+      c
+    ),
   hotspot: c =>
     svg(
       `<path d="M32 14c0 0-10 12-10 20a10 10 0 0 0 20 0c0-8-10-20-10-20z" fill="#fff" opacity=".95"/>
@@ -74,11 +85,14 @@ const ICON_BODY: Record<SymbolId, (color: string) => string> = {
     ),
   note: c =>
     svg(
-      `<rect x="20" y="16" width="24" height="30" rx="3" fill="#fff"/>
-       <path d="M26 26 H38 M26 32 H38 M26 38 H34" stroke="${c}" stroke-width="2.5" stroke-linecap="round"/>`,
+      `<rect x="18" y="18" width="28" height="22" rx="4" fill="#fff"/>
+       <path d="M28 40 L32 48 L36 40" fill="#fff"/>
+       <path d="M24 26 H38 M24 32 H34" stroke="${c}" stroke-width="2.5" stroke-linecap="round"/>`,
       c
     ),
 }
+
+export const ARROW_HEAD_IMAGE_ID = 'sitac-arrow-head'
 
 function iconImageId(symbolId: string): string {
   return `sitac-icon-${symbolId}`
@@ -92,13 +106,21 @@ export function symbolIconDataUrl(id: SymbolId, color: string): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(symbolIconSvg(id, color))}`
 }
 
+async function decodeSvgDataUrl(dataUrl: string): Promise<HTMLImageElement> {
+  const image = new Image(SIZE, SIZE)
+  image.decoding = 'async'
+  image.src = dataUrl
+  await image.decode()
+  return image
+}
+
 export async function loadSymbolIcon(
   map: {
     hasImage: (id: string) => boolean
     addImage: (
       id: string,
       image: HTMLImageElement | ImageBitmap | ImageData,
-      options?: { pixelRatio?: number }
+      options?: { pixelRatio?: number; sdf?: boolean }
     ) => void
   },
   id: SymbolId,
@@ -106,9 +128,35 @@ export async function loadSymbolIcon(
 ): Promise<void> {
   const imageId = iconImageId(id)
   if (map.hasImage(imageId)) return
-  const image = new Image(SIZE, SIZE)
-  image.decoding = 'async'
-  image.src = symbolIconDataUrl(id, color)
-  await image.decode()
+  const image = await decodeSvgDataUrl(symbolIconDataUrl(id, color))
   map.addImage(imageId, image, { pixelRatio: 2 })
+}
+
+export async function loadArrowHeadIcon(map: {
+  hasImage: (id: string) => boolean
+  addImage: (
+    id: string,
+    image: HTMLImageElement | ImageBitmap | ImageData,
+    options?: { pixelRatio?: number; sdf?: boolean }
+  ) => void
+}): Promise<void> {
+  if (map.hasImage(ARROW_HEAD_IMAGE_ID)) return
+  const canvas = document.createElement('canvas')
+  canvas.width = SIZE
+  canvas.height = SIZE
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  ctx.clearRect(0, 0, SIZE, SIZE)
+  ctx.fillStyle = '#ffffff'
+  ctx.beginPath()
+  ctx.moveTo(32, 10)
+  ctx.lineTo(54, 50)
+  ctx.lineTo(32, 42)
+  ctx.lineTo(10, 50)
+  ctx.closePath()
+  ctx.fill()
+  map.addImage(ARROW_HEAD_IMAGE_ID, ctx.getImageData(0, 0, SIZE, SIZE), {
+    pixelRatio: 2,
+    sdf: true,
+  })
 }

@@ -6,19 +6,20 @@ Independent, unofficial **tactical situation map (SITAC)** for wildfires / **inc
 
 **Not affiliated with** Protezione Civile, Vigili del Fuoco, Regione Lombardia, or any other public institution. Built by a volunteer ([smnl.dev](https://smnl.dev)).
 
-License: [PolyForm Noncommercial 1.0.0](./LICENSE) · UI: Italian (default) + English · timestamps: `Europe/Rome`
+License: [PolyForm Noncommercial 1.0.0](./LICENSE) · UI: Italian · timestamps: `Europe/Rome`
 
 Marketing / privacy / terms: [smnl.dev/aib-sitac](https://smnl.dev/aib-sitac)
 
 ## Features (v1)
 
-- Create an **incident room** (optional passphrase); share the link
+- Create an **intervento** room (optional password); browse rooms from the home list (search, date filter, pagination); rename / set or remove password from the map sidebar; share the link
 - Curated symbol palette with tactical-style icons (hotspot, active front, burned area, water, lookout, PC/ROS, vehicle, squad, road closed, wind, note) — unofficial, not institutional symbology
-- Draw **points** (one click), **lines/arrows** (multi-click + Finish), and **areas** (polygon vertices + Finish); soft-delete via tombstone events
-- **Append-only event log** in PostgreSQL → every mark add/remove is an automatic timeline step (scrubber / ← →); optional **labels** are named bookmarks only, not required for replay
+- **Cursore** mode to select marks; draw **Freccia** / **Forma** / **Testo** (plus tactical symbols); soft-delete via tombstone events
+- **Append-only event log** in PostgreSQL → every mark add/remove is an automatic timeline step (scrubber / ← → / `?step=N`), with the local profile name recorded as `actorLabel`; **Copia link** shares the current step when scrubbing
+- Shared site **navbar/footer** on every page; map **left sidebar** = cursore + symbols, **right sidebar** = timeline / export / room actions
 - **Dark mode only** (v1 UI)
 - Export **GeoJSON** and map **PNG**
-- Realtime updates via SSE (passphrase rooms poll)
+- Realtime updates via SSE (password-protected rooms poll)
 - Website first (`apps/web`); Nest API (`apps/api`); shared domain (`packages/core`); mobile slot reserved (`apps/mobile`)
 
 ## Stack
@@ -41,25 +42,27 @@ cp .env.example .env
 npm ci
 ```
 
-### Docker Compose (full stack)
+### Docker Compose
 
 ```bash
+# Full stack (db + api + web)
 npm run dev:docker
 # web http://localhost:3000 · api http://localhost:4000/api/health · db :5432
-```
 
-### Subsets
-
-```bash
-# Database only, then API + web on the host
-docker compose up db -d
+# Database only (Postgres on :5432), then run API/web on the host
+npm run dev:docker:db
 npm run dev:api
 npm run dev:web
 
-# DB + API in Compose, Next on the host
-docker compose -f compose.yaml -f compose.dev.yaml up db api --build
+# DB + API in Docker, Next on the host
+npm run dev:docker:api
 npm run dev:web
+
+# Tear down Compose services
+npm run dev:docker:down
 ```
+
+Use `dev:docker:up` / `dev:docker:api:up` for the same stacks without Compose Watch.
 
 ### Checks
 
@@ -71,11 +74,13 @@ npm test
 ## Production topology
 
 - **Web** → Vercel (`apps/web`); set `NEXT_PUBLIC_API_URL` to the public API origin
-- **API** → long-running Nest host (Fly, Railway, Render, Cloud Run, VPS); set `DATABASE_URL`, `CORS_ORIGIN`
+- **API** → long-running Nest host (Fly, Railway, Render, Cloud Run, VPS); set `DATABASE_URL`, explicit `CORS_ORIGIN` (required in production), and `TRUST_PROXY=1` when behind a reverse proxy
 - **DB** → managed PostgreSQL; schema applied automatically on API startup from `apps/api/sql/schema.sql`
+
+API hardening (no UX change for normal use): passphrase hashing (async scrypt), attempt rate limits, UUID param checks, strict event payloads (mark add/remove only; server timestamps), JSON body size cap, per-route rate limits, SSE connection caps, security headers.
 
 Nest does **not** deploy as the Vercel serverless app.
 
 ## Privacy notes
 
-Incident geometry and history live in your database. Passphrase is optional; there is no public incident directory. See [PRIVACY.md](./PRIVACY.md) and [TERMS.md](./TERMS.md).
+Intervento geometry and history live in your database. Password is optional; rooms are listed on the home page. See [PRIVACY.md](./PRIVACY.md) and [TERMS.md](./TERMS.md).

@@ -1,4 +1,6 @@
 export * from './symbols'
 export * from './types'
 export * from './fold'
+export * from './geo'
+export * from './mark-event'
 export * from './theme'

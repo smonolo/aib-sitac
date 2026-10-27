@@ -8,21 +8,16 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { getIncident } from '@/lib/api'
-import { t, type Locale } from '@/lib/i18n'
-import {
-  readActor,
-  readLocale,
-  readPassphrase,
-  writePassphrase,
-} from '@/lib/storage'
+import { getIncident, isPassphraseError } from '@/lib/api'
+import { t } from '@/lib/i18n'
+import { readPassphrase, writePassphrase } from '@/lib/storage'
 
 const SitacMap = dynamic(
   () => import('@/components/SitacMap').then(m => m.SitacMap),
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-dvh items-center justify-center bg-aib-canvas-inverse text-[13px] text-aib-muted-dark">
+      <div className="grid min-h-0 flex-1 place-items-center text-[13px] text-aib-muted-dark">
         …
       </div>
     ),
@@ -32,8 +27,6 @@ const SitacMap = dynamic(
 export default function IncidentPage() {
   const params = useParams<{ id: string }>()
   const id = params.id
-  const [locale, setLocale] = useState<Locale>('it')
-  const [actor, setActor] = useState('')
   const [passphrase, setPassphrase] = useState<string | null>(null)
   const [passInput, setPassInput] = useState('')
   const [incident, setIncident] = useState<SitacIncident | null>(null)
@@ -42,8 +35,6 @@ export default function IncidentPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setLocale(readLocale())
-    setActor(readActor())
     const stored = readPassphrase(id)
     if (stored) setPassphrase(stored)
   }, [id])
@@ -60,16 +51,11 @@ export default function IncidentPage() {
         setNeedsPass(false)
       } catch (err) {
         if (cancelled) return
-        const message = String(err)
-        if (
-          message.toLowerCase().includes('passphrase') ||
-          message.toLowerCase().includes('unauthorized') ||
-          message.toLowerCase().includes('forbidden')
-        ) {
+        if (isPassphraseError(err)) {
           setNeedsPass(true)
           setIncident(null)
         } else {
-          setError(message)
+          setError(String(err))
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -81,11 +67,11 @@ export default function IncidentPage() {
     }
   }, [id, passphrase])
 
-  const c = t(locale)
+  const c = t()
 
   if (loading) {
     return (
-      <div className="grid min-h-dvh place-items-center text-[15px] text-aib-muted-dark">
+      <div className="grid min-h-0 flex-1 place-items-center text-[15px] text-aib-muted-dark">
         {c.loading}
       </div>
     )
@@ -93,7 +79,7 @@ export default function IncidentPage() {
 
   if (needsPass && !incident) {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 px-4">
+      <main className="mx-auto flex min-h-0 w-full max-w-sm flex-1 flex-col justify-center gap-4 px-4 sm:px-5">
         <Card>
           <CardHeader>
             <CardTitle>{c.passphraseRequired}</CardTitle>
@@ -119,28 +105,16 @@ export default function IncidentPage() {
             </Button>
           </CardContent>
         </Card>
-        <a
-          href="/"
-          className="text-center text-[13px] font-medium text-aib-fg-inverse underline underline-offset-2 hover:opacity-70"
-        >
-          {c.home}
-        </a>
       </main>
     )
   }
 
   if (error || !incident) {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-4 px-4">
+      <main className="mx-auto flex min-h-0 w-full max-w-sm flex-1 flex-col justify-center gap-4 px-4 sm:px-5">
         <p className="text-[15px] text-aib-brand">
-          {c.error}: {error ?? 'Not found'}
+          {c.error}: {error ?? 'Non trovato'}
         </p>
-        <a
-          href="/"
-          className="text-[13px] font-medium text-aib-fg-inverse underline underline-offset-2 hover:opacity-70"
-        >
-          {c.home}
-        </a>
       </main>
     )
   }
@@ -149,8 +123,8 @@ export default function IncidentPage() {
     <SitacMap
       incident={incident}
       passphrase={passphrase}
-      locale={locale}
-      actorLabel={actor}
+      onIncidentChange={setIncident}
+      onPassphraseChange={setPassphrase}
     />
   )
 }

@@ -5,125 +5,147 @@ import type {
   GeoJSONSource,
   Map as MapLibreMap,
   MapMouseEvent,
-  StyleSpecification,
 } from 'maplibre-gl'
 import {
+  Braces,
+  ChevronLeft,
+  ChevronRight,
+  Image as ImageIcon,
+  Link2,
+  MousePointer2,
+  Settings,
+} from 'lucide-react'
+import {
+  ANNOTATION_SYMBOL_IDS,
   SYMBOL_CATALOG,
   featuresToGeoJson,
   foldFeatures,
   getSymbol,
+  isAnnotationSymbol,
   listMarkEvents,
-  listNamedMoments,
+  summarizeMarkEvents,
   type LonLat,
   type SitacEvent,
-  type SitacFeature,
   type SitacGeometry,
   type SitacIncident,
   type SymbolId,
 } from '@aib-sitac/core'
-import { appendEvent, eventsStreamUrl, listEvents } from '@/lib/api'
-import { formatStepOf, geometryKindLabel, t, type Locale } from '@/lib/i18n'
-import { loadSymbolIcon, symbolIconDataUrl } from '@/lib/map-icons'
-import { formatTs } from '@/lib/storage'
+import { ActorDialog } from '@/components/ActorDialog'
+import { RoomSettingsDialog } from '@/components/RoomSettingsDialog'
+import { TextMarkDialog } from '@/components/TextMarkDialog'
+import { ToolTipCard } from '@/components/ToolTipCard'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
 import { Slider } from '@/components/ui/slider'
+import { appendEvent, eventsStreamUrl, listEvents } from '@/lib/api'
+import {
+  drawHintForGeometry,
+  formatStepOf,
+  geometryKindLabel,
+  t,
+} from '@/lib/i18n'
+import { BASEMAP_STYLE } from '@/lib/map-basemap'
+import {
+  draftToDisplayGeoJson,
+  featuresToDisplayGeoJson,
+} from '@/lib/map-display'
+import { symbolIconDataUrl } from '@/lib/map-icons'
+import { addSitacSourcesAndLayers, PICK_LAYERS } from '@/lib/map-layers'
+import { formatTs, readActor } from '@/lib/storage'
+import {
+  markScrubIndex,
+  readTimelineStepParam,
+  roomUrlWithTimelineStep,
+  writeTimelineStepParam,
+} from '@/lib/timeline-url'
 import { cn } from '@/lib/utils'
 
-const BASEMAP_STYLE: StyleSpecification = {
-  version: 8,
-  sources: {
-    osm: {
-      type: 'raster',
-      tiles: [
-        'https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
-        'https://b.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
-      ],
-      tileSize: 256,
-      attribution:
-        '© OpenStreetMap contributors, Tiles courtesy of Humanitarian OpenStreetMap Team',
-    },
-  },
-  layers: [{ id: 'osm', type: 'raster', source: 'osm' }],
-}
-
-const EMPTY_FC: GeoJSON.FeatureCollection = {
-  type: 'FeatureCollection',
-  features: [],
-}
+type ActiveTool = 'select' | SymbolId
+type DrawMode = 'idle' | 'drawing'
+type PendingText = { coordinates: LonLat }
 
 const SYMBOL_ICON_URLS = Object.fromEntries(
   SYMBOL_CATALOG.map(s => [s.id, symbolIconDataUrl(s.id, s.color)])
 ) as Record<SymbolId, string>
 
-type DrawMode = 'idle' | 'drawing'
-
-function newId(): string {
-  return crypto.randomUUID()
-}
-
-function toFc(features: readonly SitacFeature[]): GeoJSON.FeatureCollection {
-  return featuresToGeoJson(features) as GeoJSON.FeatureCollection
-}
+const ANNOTATION_SYMBOLS = SYMBOL_CATALOG.filter(s =>
+  (ANNOTATION_SYMBOL_IDS as readonly string[]).includes(s.id)
+)
+const TACTICAL_SYMBOLS = SYMBOL_CATALOG.filter(s => !isAnnotationSymbol(s.id))
 
 type Props = {
   incident: SitacIncident
   passphrase: string | null
-  locale: Locale
-  actorLabel: string
+  onIncidentChange?: (incident: SitacIncident) => void
+  onPassphraseChange?: (passphrase: string | null) => void
 }
 
-export function SitacMap({ incident, passphrase, locale, actorLabel }: Props) {
-  const c = t(locale)
+export function SitacMap({
+  incident,
+  passphrase,
+  onIncidentChange,
+  onPassphraseChange,
+}: Props) {
+  const c = t()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
+  const initialViewRef = useRef({
+    lng: incident.centerLng,
+    lat: incident.centerLat,
+    zoom: Math.min(incident.zoom, 19),
+  })
   const [events, setEvents] = useState<SitacEvent[]>([])
   const [scrubTs, setScrubTs] = useState<string | null>(null)
-  const [symbolId, setSymbolId] = useState<SymbolId>('hotspot')
-  const [estimated, setEstimated] = useState(false)
+  const [tool, setTool] = useState<ActiveTool>('select')
   const [drawCoords, setDrawCoords] = useState<LonLat[]>([])
   const [drawMode, setDrawMode] = useState<DrawMode>('idle')
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [snapshotName, setSnapshotName] = useState('')
-  const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [mapReady, setMapReady] = useState(false)
+  const [pendingText, setPendingText] = useState<PendingText | null>(null)
+  const [textDraft, setTextDraft] = useState('')
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [actorOpen, setActorOpen] = useState(false)
+  const [eventsReady, setEventsReady] = useState(false)
+  const actorWaitersRef = useRef<Array<(name: string | null) => void>>([])
+  const urlStepAppliedRef = useRef(false)
 
-  const symbol = getSymbol(symbolId) ?? SYMBOL_CATALOG[0]!
+  const selectMode = tool === 'select'
+  const symbol = selectMode ? null : (getSymbol(tool) ?? null)
   const live = scrubTs === null
   const features = useMemo(
     () => foldFeatures(events, scrubTs),
     [events, scrubTs]
   )
-  const moments = useMemo(() => listNamedMoments(events), [events])
+  const displayGeoJson = useMemo(
+    () => featuresToDisplayGeoJson(features),
+    [features]
+  )
   const markEvents = useMemo(() => listMarkEvents(events), [events])
-
-  const scrubIndex = useMemo(() => {
-    if (markEvents.length === 0) return 0
-    if (scrubTs == null) return markEvents.length - 1
-    const scrubMs = Date.parse(scrubTs)
-    let idx = 0
-    for (let i = 0; i < markEvents.length; i++) {
-      if (Date.parse(markEvents[i]!.ts) <= scrubMs) idx = i
-      else break
-    }
-    return idx
-  }, [markEvents, scrubTs])
+  const markSummaries = useMemo(
+    () => summarizeMarkEvents(markEvents, c.timelineUnknownMark),
+    [markEvents, c.timelineUnknownMark]
+  )
+  const scrubIndex = useMemo(
+    () => markScrubIndex(markEvents, scrubTs),
+    [markEvents, scrubTs]
+  )
 
   const goToMarkStep = useCallback(
     (idx: number) => {
       if (markEvents.length === 0) {
         setScrubTs(null)
+        writeTimelineStepParam(null)
         return
       }
       const clamped = Math.max(0, Math.min(idx, markEvents.length - 1))
       if (clamped >= markEvents.length - 1) {
         setScrubTs(null)
+        writeTimelineStepParam(null)
         return
       }
       setScrubTs(markEvents[clamped]!.ts)
+      writeTimelineStepParam(clamped + 1)
     },
     [markEvents]
   )
@@ -131,11 +153,23 @@ export function SitacMap({ incident, passphrase, locale, actorLabel }: Props) {
   const refresh = useCallback(async () => {
     const list = await listEvents(incident.id, passphrase)
     setEvents(list)
+    setEventsReady(true)
   }, [incident.id, passphrase])
 
   useEffect(() => {
+    setEventsReady(false)
+    urlStepAppliedRef.current = false
+    setScrubTs(null)
     refresh().catch(err => setError(String(err)))
   }, [refresh])
+
+  useEffect(() => {
+    if (!eventsReady || urlStepAppliedRef.current) return
+    urlStepAppliedRef.current = true
+    const step = readTimelineStepParam()
+    if (step == null || markEvents.length === 0) return
+    goToMarkStep(step - 1)
+  }, [eventsReady, goToMarkStep, markEvents.length])
 
   useEffect(() => {
     if (passphrase) {
@@ -164,6 +198,7 @@ export function SitacMap({ incident, passphrase, locale, actorLabel }: Props) {
     let cancelled = false
     let map: MapLibreMap | null = null
     let resizeObserver: ResizeObserver | null = null
+    const view = initialViewRef.current
 
     void (async () => {
       type MaplibreGl = typeof import('maplibre-gl')
@@ -176,14 +211,15 @@ export function SitacMap({ incident, passphrase, locale, actorLabel }: Props) {
       const instance = new maplibregl.Map({
         container: containerRef.current,
         style: BASEMAP_STYLE,
-        center: [incident.centerLng, incident.centerLat],
-        zoom: incident.zoom,
+        center: [view.lng, view.lat],
+        zoom: view.zoom,
+        maxZoom: 22,
         canvasContextAttributes: { preserveDrawingBuffer: true },
       })
       map = instance
       instance.addControl(
         new maplibregl.NavigationControl({ showCompass: true }),
-        'top-right'
+        'top-left'
       )
       mapRef.current = instance
       setMapReady(false)
@@ -198,90 +234,8 @@ export function SitacMap({ incident, passphrase, locale, actorLabel }: Props) {
       instance.on('load', () => {
         void (async () => {
           instance.resize()
-          await Promise.all(
-            SYMBOL_CATALOG.map(s => loadSymbolIcon(instance, s.id, s.color))
-          )
+          await addSitacSourcesAndLayers(instance)
           if (cancelled) return
-
-          instance.addSource('sitac', {
-            type: 'geojson',
-            data: EMPTY_FC,
-            promoteId: 'id',
-          })
-          instance.addLayer({
-            id: 'sitac-fill',
-            type: 'fill',
-            source: 'sitac',
-            filter: ['==', ['geometry-type'], 'Polygon'],
-            paint: {
-              'fill-color': ['coalesce', ['get', 'color'], '#AF2525'],
-              'fill-opacity': 0.35,
-            },
-          })
-          instance.addLayer({
-            id: 'sitac-line',
-            type: 'line',
-            source: 'sitac',
-            filter: [
-              'any',
-              ['==', ['geometry-type'], 'LineString'],
-              ['==', ['geometry-type'], 'Polygon'],
-            ],
-            paint: {
-              'line-color': ['coalesce', ['get', 'color'], '#AF2525'],
-              'line-width': 3,
-            },
-          })
-          instance.addLayer({
-            id: 'sitac-point',
-            type: 'symbol',
-            source: 'sitac',
-            filter: ['==', ['geometry-type'], 'Point'],
-            layout: {
-              'icon-image': [
-                'concat',
-                'sitac-icon-',
-                ['coalesce', ['get', 'symbolId'], 'hotspot'],
-              ],
-              'icon-size': 1.15,
-              'icon-allow-overlap': true,
-              'icon-ignore-placement': true,
-              'text-field': ['coalesce', ['get', 'label'], ''],
-              'text-size': 13,
-              'text-offset': [0, 2.1],
-              'text-anchor': 'top',
-              'text-optional': true,
-            },
-            paint: {
-              'text-color': '#fafafa',
-              'text-halo-color': '#111111',
-              'text-halo-width': 1.2,
-            },
-          })
-          instance.addSource('draft', {
-            type: 'geojson',
-            data: EMPTY_FC,
-          })
-          instance.addLayer({
-            id: 'draft-line',
-            type: 'line',
-            source: 'draft',
-            paint: {
-              'line-color': '#AF2525',
-              'line-width': 2,
-              'line-dasharray': [2, 2],
-            },
-          })
-          instance.addLayer({
-            id: 'draft-point',
-            type: 'circle',
-            source: 'draft',
-            filter: ['==', ['geometry-type'], 'Point'],
-            paint: {
-              'circle-radius': 5,
-              'circle-color': '#AF2525',
-            },
-          })
           setMapReady(true)
         })()
       })
@@ -295,80 +249,100 @@ export function SitacMap({ incident, passphrase, locale, actorLabel }: Props) {
       setMapReady(false)
       if (containerRef.current) containerRef.current.innerHTML = ''
     }
-  }, [incident.centerLat, incident.centerLng, incident.zoom])
+  }, [])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!mapReady || !map) return
+    map.jumpTo({
+      center: [incident.centerLng, incident.centerLat],
+      zoom: Math.min(incident.zoom, 19),
+    })
+  }, [incident.centerLat, incident.centerLng, incident.zoom, mapReady])
 
   useEffect(() => {
     const map = mapRef.current
     if (!mapReady || !map || !map.getSource('sitac')) return
-    ;(map.getSource('sitac') as GeoJSONSource).setData(toFc(features))
-  }, [features, mapReady])
+    ;(map.getSource('sitac') as GeoJSONSource).setData(displayGeoJson)
+  }, [displayGeoJson, mapReady])
 
   useEffect(() => {
     const map = mapRef.current
     if (!mapReady || !map || !map.getSource('draft')) return
-    const draftFeatures: GeoJSON.Feature[] = []
-    if (drawCoords.length === 1) {
-      draftFeatures.push({
-        type: 'Feature',
-        properties: {},
-        geometry: { type: 'Point', coordinates: drawCoords[0]! },
-      })
-    } else if (drawCoords.length > 1) {
-      draftFeatures.push({
-        type: 'Feature',
-        properties: {},
-        geometry: { type: 'LineString', coordinates: drawCoords },
-      })
-    }
-    ;(map.getSource('draft') as GeoJSONSource).setData({
-      type: 'FeatureCollection',
-      features: draftFeatures,
+    const kind =
+      symbol?.geometry === 'arrow' ||
+      symbol?.geometry === 'line' ||
+      symbol?.geometry === 'polygon'
+        ? symbol.geometry
+        : null
+    ;(map.getSource('draft') as GeoJSONSource).setData(
+      draftToDisplayGeoJson(drawCoords, kind, symbol?.color)
+    )
+  }, [drawCoords, mapReady, symbol])
+
+  const resolveActorLabel = useCallback(async (): Promise<string | null> => {
+    const existing = readActor().trim()
+    if (existing) return existing
+    setActorOpen(true)
+    return await new Promise<string | null>(resolve => {
+      actorWaitersRef.current.push(resolve)
     })
-  }, [drawCoords, mapReady])
+  }, [])
+
+  const settleActorWaiters = useCallback((name: string | null) => {
+    const waiters = actorWaitersRef.current
+    actorWaitersRef.current = []
+    for (const resolve of waiters) resolve(name)
+  }, [])
 
   const pushEvent = useCallback(
     async (op: SitacEvent['op'], payload: SitacEvent['payload']) => {
       setError(null)
+      const actor = await resolveActorLabel()
+      if (!actor) {
+        setError(c.actorRequired)
+        return null
+      }
       const event = await appendEvent(
         incident.id,
-        { op, payload, actorLabel: actorLabel || null },
+        { op, payload, actorLabel: actor },
         passphrase
       )
       setEvents(prev =>
         prev.some(e => e.id === event.id) ? prev : [...prev, event]
       )
       setScrubTs(null)
+      writeTimelineStepParam(null)
       return event
     },
-    [actorLabel, incident.id, passphrase]
+    [c.actorRequired, incident.id, passphrase, resolveActorLabel]
   )
 
   const commitGeometry = useCallback(
-    async (geometry: SitacGeometry) => {
-      const featureId = newId()
-      const note =
-        symbol.geometry === 'text'
-          ? (window.prompt(locale === 'it' ? 'Testo nota' : 'Note text') ?? '')
-          : undefined
-      await pushEvent('upsert_feature', {
+    async (geometry: SitacGeometry, text?: string) => {
+      if (!symbol) return
+      const featureId = crypto.randomUUID()
+      const trimmed = text?.trim()
+      const event = await pushEvent('upsert_feature', {
         featureId,
         geometry,
         properties: {
           symbolId: symbol.id,
           geometryKind: symbol.geometry,
           color: symbol.color,
-          estimated,
-          note: note || undefined,
-          label: note || undefined,
+          note: trimmed || undefined,
+          label: trimmed || undefined,
         },
       })
+      if (!event) return
       setDrawCoords([])
       setDrawMode('idle')
     },
-    [estimated, locale, pushEvent, symbol]
+    [pushEvent, symbol]
   )
 
   const finishDraw = useCallback(async () => {
+    if (!symbol) return
     if (symbol.geometry === 'polygon') {
       if (drawCoords.length < 3) return
       const ring = [...drawCoords, drawCoords[0]!]
@@ -377,35 +351,79 @@ export function SitacMap({ incident, passphrase, locale, actorLabel }: Props) {
     }
     if (drawCoords.length < 2) return
     await commitGeometry({ type: 'LineString', coordinates: drawCoords })
-  }, [commitGeometry, drawCoords, symbol.geometry])
+  }, [commitGeometry, drawCoords, symbol])
+
+  const cancelDraw = useCallback(() => {
+    setDrawCoords([])
+    setDrawMode('idle')
+    setPendingText(null)
+    setTextDraft('')
+  }, [])
+
+  const selectSelectTool = () => {
+    setTool('select')
+    cancelDraw()
+  }
+
+  const selectSymbolTool = (id: SymbolId) => {
+    setTool(id)
+    setSelectedId(null)
+    cancelDraw()
+  }
+
+  const confirmTextMark = () => {
+    if (!pendingText || !textDraft.trim()) return
+    const coords = pendingText.coordinates
+    setPendingText(null)
+    const label = textDraft.trim()
+    setTextDraft('')
+    void commitGeometry({ type: 'Point', coordinates: coords }, label).catch(
+      err => setError(String(err))
+    )
+  }
 
   useEffect(() => {
     const map = mapRef.current
     if (!mapReady || !map) return
 
-    const onClick = (e: MapMouseEvent) => {
-      if (!live) return
-
-      const layers = ['sitac-point', 'sitac-line', 'sitac-fill'].filter(id =>
-        map.getLayer(id)
+    const featureIdAt = (point: { x: number; y: number }): string | null => {
+      const layers = PICK_LAYERS.filter(id => map.getLayer(id))
+      if (layers.length === 0) return null
+      const pad = 10
+      const hits = map.queryRenderedFeatures(
+        [
+          [point.x - pad, point.y - pad],
+          [point.x + pad, point.y + pad],
+        ],
+        { layers: [...layers] }
       )
-      const hit =
-        layers.length > 0 ? map.queryRenderedFeatures(e.point, { layers }) : []
+      const hit = hits[0]
+      if (!hit) return null
+      const fromProps = hit.properties?.id
+      if (fromProps != null && fromProps !== '') return String(fromProps)
+      const fromId = hit.id
+      if (fromId != null && fromId !== '') return String(fromId)
+      return null
+    }
 
-      if (e.originalEvent.shiftKey) {
-        if (hit.length > 0) {
-          const id = hit[0]?.id
-          if (id != null) setSelectedId(String(id))
-        } else {
-          setSelectedId(null)
-        }
+    const onClick = (e: MapMouseEvent) => {
+      if (!live || pendingText) return
+
+      if (selectMode || !symbol) {
+        setSelectedId(featureIdAt(e.point))
         return
       }
 
       setSelectedId(null)
       const lngLat: LonLat = [e.lngLat.lng, e.lngLat.lat]
 
-      if (symbol.geometry === 'point' || symbol.geometry === 'text') {
+      if (symbol.geometry === 'text') {
+        setTextDraft('')
+        setPendingText({ coordinates: lngLat })
+        return
+      }
+
+      if (symbol.geometry === 'point') {
         void commitGeometry({ type: 'Point', coordinates: lngLat }).catch(err =>
           setError(String(err))
         )
@@ -417,7 +435,7 @@ export function SitacMap({ incident, passphrase, locale, actorLabel }: Props) {
     }
 
     const onDblClick = (e: MapMouseEvent) => {
-      if (!live || drawMode !== 'drawing') return
+      if (!live || selectMode || drawMode !== 'drawing' || pendingText) return
       e.preventDefault()
       void finishDraw().catch(err => setError(String(err)))
     }
@@ -429,34 +447,28 @@ export function SitacMap({ incident, passphrase, locale, actorLabel }: Props) {
       map.off('click', onClick)
       map.off('dblclick', onDblClick)
     }
-  }, [commitGeometry, drawMode, finishDraw, live, mapReady, symbol.geometry])
-
-  const cancelDraw = () => {
-    setDrawCoords([])
-    setDrawMode('idle')
-  }
+  }, [
+    commitGeometry,
+    drawMode,
+    finishDraw,
+    live,
+    mapReady,
+    pendingText,
+    selectMode,
+    symbol,
+  ])
 
   const deleteSelected = async () => {
     if (!selectedId || !live) return
-    await pushEvent('delete_feature', { featureId: selectedId })
+    const event = await pushEvent('delete_feature', { featureId: selectedId })
+    if (!event) return
     setSelectedId(null)
-  }
-
-  const saveSnapshot = async () => {
-    const name = snapshotName.trim()
-    if (!name) return
-    await pushEvent('named_snapshot', { name })
-    setSnapshotName('')
-    setStatus(c.snapshotCta)
-    window.setTimeout(() => setStatus(null), 2000)
   }
 
   const exportGeoJson = () => {
     const blob = new Blob(
       [JSON.stringify(featuresToGeoJson(features), null, 2)],
-      {
-        type: 'application/geo+json',
-      }
+      { type: 'application/geo+json' }
     )
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
@@ -493,253 +505,372 @@ export function SitacMap({ incident, passphrase, locale, actorLabel }: Props) {
   }
 
   const copyLink = async () => {
-    await navigator.clipboard.writeText(window.location.href)
+    const step = live || markEvents.length === 0 ? null : scrubIndex + 1
+    const url = roomUrlWithTimelineStep(window.location.href, step)
+    await navigator.clipboard.writeText(url)
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1500)
   }
 
-  const drawHint =
-    symbol.geometry === 'point' || symbol.geometry === 'text'
-      ? c.drawHintPoint
-      : symbol.geometry === 'polygon'
-        ? c.drawHintPolygon
-        : c.drawHintLine
+  const selectedFeature = useMemo(
+    () => (selectedId ? features.find(f => f.id === selectedId) : null),
+    [features, selectedId]
+  )
+  const selectedSymbol = selectedFeature
+    ? (getSymbol(selectedFeature.properties.symbolId) ?? null)
+    : null
+
+  const currentMarkSummary = markSummaries[scrubIndex] ?? null
+
+  const activeTip = useMemo((): {
+    iconSrc?: string
+    icon?: React.ReactNode
+    title: string
+    kindLabel?: string
+    body: string
+  } | null => {
+    if (symbol) {
+      return {
+        iconSrc: SYMBOL_ICON_URLS[symbol.id],
+        title: symbol.label,
+        kindLabel: geometryKindLabel(symbol.geometry),
+        body: `${c.symbolHelp[symbol.id]} ${drawHintForGeometry(symbol.geometry)}`,
+      }
+    }
+    if (selectMode && selectedSymbol && selectedFeature) {
+      const label =
+        selectedFeature.properties.label?.trim() || selectedSymbol.label
+      return {
+        iconSrc: SYMBOL_ICON_URLS[selectedSymbol.id],
+        title: label,
+        kindLabel: geometryKindLabel(selectedFeature.properties.geometryKind),
+        body: c.selectedMarkHint,
+      }
+    }
+    if (selectMode) {
+      return {
+        icon: <MousePointer2 className="size-5" aria-hidden />,
+        title: c.selectTool,
+        body: c.selectToolHint,
+      }
+    }
+    return null
+  }, [
+    c.selectTool,
+    c.selectToolHint,
+    c.selectedMarkHint,
+    c.symbolHelp,
+    selectMode,
+    selectedFeature,
+    selectedSymbol,
+    symbol,
+  ])
 
   return (
-    <div className="flex h-dvh flex-col bg-aib-canvas-inverse text-aib-fg-inverse">
-      <header className="flex flex-wrap items-center gap-3 border-b border-aib-border-dark bg-aib-canvas-inverse px-3 py-2.5">
-        <a
-          href="/"
-          className="text-[13px] font-semibold tracking-[-0.2px] text-aib-fg-inverse underline-offset-2 hover:opacity-70"
-        >
-          {c.brand}
-        </a>
-        <span className="truncate text-[13px] text-aib-muted-dark">
-          {incident.title}
-        </span>
-        <div className="ml-auto flex flex-wrap items-center gap-1">
-          <Button variant="ghost" size="xs" onClick={() => void copyLink()}>
-            {copied ? c.copied : c.shareLink}
-          </Button>
-          <Button variant="ghost" size="xs" onClick={exportGeoJson}>
-            {c.exportGeoJson}
-          </Button>
-          <Button variant="ghost" size="xs" onClick={() => void exportPng()}>
-            {c.exportPng}
-          </Button>
+    <div className="flex min-h-0 flex-1 bg-aib-canvas-inverse text-aib-fg-inverse">
+      <aside
+        className="flex w-56 shrink-0 flex-col border-r border-aib-border-dark bg-aib-surface-dark sm:w-64"
+        aria-label={c.palette}
+      >
+        <div className="shrink-0 p-2.5">
+          <button
+            type="button"
+            aria-pressed={selectMode}
+            onClick={selectSelectTool}
+            className={cn(
+              'aib-tool-btn w-full',
+              selectMode ? 'aib-tool-btn-active' : 'aib-tool-btn-idle'
+            )}
+          >
+            <MousePointer2 className="size-[22px] shrink-0" aria-hidden />
+            <span className="min-w-0 flex-1 truncate">{c.selectTool}</span>
+          </button>
         </div>
-      </header>
-
-      <div className="relative min-h-0 flex-1">
-        <div
-          ref={containerRef}
-          className="absolute inset-0 h-full w-full [&_.maplibregl-map]:h-full [&_.maplibregl-map]:w-full"
-        />
-
-        <aside className="absolute top-3 left-3 z-10 max-h-[70vh] w-60 overflow-auto rounded-aib border border-aib-border-dark bg-aib-surface-dark/95 p-2 backdrop-blur">
-          <div className="mb-2 text-[13px] font-medium text-aib-muted-dark">
-            {c.palette}
-          </div>
-          <div className="flex flex-col gap-0.5">
-            {SYMBOL_CATALOG.map(s => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => {
-                  setSymbolId(s.id)
-                  cancelDraw()
-                }}
-                className={cn(
-                  'flex min-h-9 cursor-pointer items-center gap-2 rounded-aib-sm px-2 text-left text-[13px] font-medium transition-opacity',
-                  symbolId === s.id
-                    ? 'bg-aib-fg-inverse text-aib-fg'
-                    : 'text-aib-track-idle-dark hover:opacity-70'
-                )}
-              >
-                <img
-                  src={SYMBOL_ICON_URLS[s.id]}
-                  alt=""
-                  width={22}
-                  height={22}
-                  className="size-[22px] shrink-0"
+        <div className="flex min-h-0 flex-1 flex-col border-t border-aib-border-dark">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+            <div className="flex flex-col gap-0.5 p-2.5">
+              {ANNOTATION_SYMBOLS.map(s => (
+                <SymbolToolButton
+                  key={s.id}
+                  symbol={s}
+                  active={tool === s.id}
+                  onSelect={selectSymbolTool}
                 />
-                <span className="min-w-0 flex-1 truncate">
-                  {locale === 'it' ? s.labelIt : s.labelEn}
-                </span>
-                <span
-                  className={cn(
-                    'shrink-0 text-[11px] font-medium tracking-wide uppercase opacity-70',
-                    symbolId === s.id ? 'text-aib-muted' : 'text-aib-muted-dark'
-                  )}
-                >
-                  {geometryKindLabel(s.geometry, locale)}
-                </span>
-              </button>
-            ))}
-          </div>
-          <label className="mt-3 flex items-center gap-2 text-[13px] text-aib-muted-dark">
-            <Checkbox
-              checked={estimated}
-              onCheckedChange={value => setEstimated(value === true)}
-              disabled={!live}
-            />
-            {c.estimated}
-          </label>
-          <p className="mt-2 text-[12px] leading-snug text-aib-muted-dark">
-            {live ? drawHint : c.scrubbingHint}
-          </p>
-          {drawMode === 'drawing' ? (
-            <div className="mt-2 flex gap-1">
-              <Button
-                size="sm"
-                className="flex-1"
-                onClick={() =>
-                  void finishDraw().catch(err => setError(String(err)))
-                }
-              >
-                {c.finishDraw}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={cancelDraw}>
-                {c.cancelDraw}
-              </Button>
+              ))}
             </div>
-          ) : null}
-          {selectedId && live ? (
+            <div className="flex flex-col gap-0.5 border-t border-aib-border-dark p-2.5">
+              {TACTICAL_SYMBOLS.map(s => (
+                <SymbolToolButton
+                  key={s.id}
+                  symbol={s}
+                  active={tool === s.id}
+                  onSelect={selectSymbolTool}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-col gap-2 border-t border-aib-border-dark p-2.5">
+            {activeTip ? (
+              <ToolTipCard
+                iconSrc={activeTip.iconSrc}
+                icon={activeTip.icon}
+                title={activeTip.title}
+                kindLabel={activeTip.kindLabel}
+                body={activeTip.body}
+              />
+            ) : null}
+            {drawMode === 'drawing' && !selectMode ? (
+              <div className="flex gap-1.5">
+                <Button
+                  size="sm"
+                  className="flex-1"
+                  onClick={() =>
+                    void finishDraw().catch(err => setError(String(err)))
+                  }
+                >
+                  {c.finishDraw}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={cancelDraw}>
+                  {c.cancelDraw}
+                </Button>
+              </div>
+            ) : null}
             <Button
               variant="destructive"
               size="sm"
-              className="mt-2 w-full"
+              className="w-full"
+              disabled={!selectedId || !live || !selectMode}
               onClick={() =>
                 void deleteSelected().catch(err => setError(String(err)))
               }
             >
               {c.deleteFeature}
             </Button>
-          ) : null}
-        </aside>
-      </div>
-
-      <footer className="border-t border-aib-border-dark bg-aib-canvas-inverse px-3 py-2.5">
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          <span className="text-[13px] font-medium text-aib-muted-dark">
-            {c.timeline}
-          </span>
-          <button
-            type="button"
-            onClick={() => setScrubTs(null)}
-            className={cn(
-              'min-h-7 cursor-pointer rounded-md px-2 text-[12px] font-medium transition-opacity',
-              live
-                ? 'bg-aib-fg-inverse text-aib-fg'
-                : 'text-aib-track-idle-dark hover:opacity-70'
-            )}
-          >
-            {c.live}
-          </button>
-          <Button
-            variant="ghost"
-            size="xs"
-            disabled={markEvents.length === 0 || scrubIndex <= 0}
-            aria-label={c.prevStep}
-            onClick={() => goToMarkStep(scrubIndex - 1)}
-          >
-            ←
-          </Button>
-          <Button
-            variant="ghost"
-            size="xs"
-            disabled={
-              markEvents.length === 0 || scrubIndex >= markEvents.length - 1
-            }
-            aria-label={c.nextStep}
-            onClick={() => goToMarkStep(scrubIndex + 1)}
-          >
-            →
-          </Button>
-          {markEvents.length > 0 ? (
-            <span className="text-[12px] text-aib-muted-dark">
-              {formatStepOf(locale, scrubIndex + 1, markEvents.length)}
-            </span>
-          ) : null}
-          {moments.length > 0 ? (
-            <>
-              <span className="text-[12px] text-aib-muted-dark">
-                {c.labels}
-              </span>
-              {moments.map(m => (
-                <button
-                  key={m.eventId}
-                  type="button"
-                  title={formatTs(m.ts, locale)}
-                  onClick={() => setScrubTs(m.ts)}
-                  className={cn(
-                    'min-h-7 cursor-pointer rounded-md px-2 text-[12px] font-medium transition-opacity',
-                    scrubTs === m.ts
-                      ? 'bg-aib-fg-inverse text-aib-fg'
-                      : 'text-aib-track-idle-dark hover:opacity-70'
-                  )}
-                >
-                  {m.name}
-                </button>
-              ))}
-            </>
-          ) : null}
-          <div className="ml-auto flex flex-wrap items-center gap-1">
-            <Input
-              value={snapshotName}
-              onChange={e => setSnapshotName(e.target.value)}
-              placeholder={c.snapshotName}
-              disabled={!live}
-              className="min-h-7 w-44 rounded-aib-sm px-2 py-1 text-[12px]"
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  void saveSnapshot().catch(err => setError(String(err)))
-                }
-              }}
-            />
-            <Button
-              variant="ghost"
-              size="xs"
-              disabled={!live || !snapshotName.trim()}
-              onClick={() =>
-                void saveSnapshot().catch(err => setError(String(err)))
-              }
-            >
-              {c.snapshot}
-            </Button>
           </div>
         </div>
-        <p className="mb-2 text-[12px] leading-snug text-aib-muted-dark">
-          {c.timelineHint} {c.snapshotHint}
-        </p>
-        <Slider
-          min={0}
-          max={Math.max(markEvents.length - 1, 0)}
-          value={[scrubIndex]}
-          disabled={markEvents.length === 0}
-          onValueChange={values => {
-            const list = Array.isArray(values) ? values : [values]
-            goToMarkStep(Number(list[0] ?? 0))
+      </aside>
+
+      <div className="relative min-h-0 min-w-0 flex-1">
+        <div
+          ref={containerRef}
+          className="absolute inset-0 h-full w-full [&_.maplibregl-map]:h-full [&_.maplibregl-map]:w-full"
+        />
+        <TextMarkDialog
+          open={pendingText != null}
+          value={textDraft}
+          onChange={setTextDraft}
+          onConfirm={confirmTextMark}
+          onCancel={cancelDraw}
+        />
+        <RoomSettingsDialog
+          open={settingsOpen}
+          incident={incident}
+          passphrase={passphrase}
+          onClose={() => setSettingsOpen(false)}
+          onIncidentChange={onIncidentChange}
+          onPassphraseChange={onPassphraseChange}
+        />
+        <ActorDialog
+          open={actorOpen}
+          onClose={() => {
+            setActorOpen(false)
+            settleActorWaiters(readActor().trim() || null)
+          }}
+          onChange={name => {
+            const trimmed = name.trim()
+            if (trimmed) {
+              setActorOpen(false)
+              settleActorWaiters(trimmed)
+            }
           }}
         />
-        <div className="mt-1.5 flex justify-between gap-2 text-[12px] text-aib-muted-dark">
-          <span>
-            {markEvents.length === 0
-              ? c.noEvents
-              : formatTs(
-                  markEvents[scrubIndex]?.ts ?? incident.createdAt,
-                  locale
-                )}
-          </span>
-          {status ? <span>{status}</span> : null}
+      </div>
+
+      <aside className="flex w-72 shrink-0 flex-col border-l border-aib-border-dark bg-aib-surface-dark sm:w-80">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-[13px] font-medium text-aib-muted-dark">
+              {c.timeline}
+            </p>
+            <p className="shrink-0 text-[13px] text-aib-muted-dark tabular-nums">
+              {formatStepOf(
+                markEvents.length === 0 ? 0 : scrubIndex + 1,
+                markEvents.length
+              )}
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Slider
+              min={0}
+              max={Math.max(markEvents.length - 1, 1)}
+              value={[scrubIndex]}
+              disabled={markEvents.length <= 1}
+              onValueChange={values => {
+                const list = Array.isArray(values) ? values : [values]
+                goToMarkStep(Number(list[0] ?? 0))
+              }}
+            />
+            <p className="text-[13px] leading-snug text-aib-muted-dark">
+              {markEvents.length === 0
+                ? c.noEvents
+                : formatTs(markEvents[scrubIndex]?.ts ?? incident.createdAt)}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              disabled={markEvents.length === 0 || scrubIndex <= 0}
+              aria-label={c.prevStep}
+              onClick={() => goToMarkStep(scrubIndex - 1)}
+              className="aib-quiet-btn flex flex-1 items-center justify-center"
+            >
+              <ChevronLeft className="size-4" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={() => goToMarkStep(markEvents.length - 1)}
+              className={cn(
+                'aib-quiet-btn flex-[2]',
+                live && 'aib-tool-btn-active hover:opacity-100'
+              )}
+            >
+              {c.live}
+            </button>
+            <button
+              type="button"
+              disabled={
+                markEvents.length === 0 || scrubIndex >= markEvents.length - 1
+              }
+              aria-label={c.nextStep}
+              onClick={() => goToMarkStep(scrubIndex + 1)}
+              className="aib-quiet-btn flex flex-1 items-center justify-center"
+            >
+              <ChevronRight className="size-4" aria-hidden />
+            </button>
+          </div>
+
+          {currentMarkSummary ? (
+            <div
+              className="flex w-full items-center gap-2.5 rounded-aib-sm bg-aib-surface-muted-dark px-2.5 py-2"
+              role="status"
+            >
+              {currentMarkSummary.symbolId ? (
+                <img
+                  src={SYMBOL_ICON_URLS[currentMarkSummary.symbolId]}
+                  alt=""
+                  width={28}
+                  height={28}
+                  className="size-7 shrink-0"
+                />
+              ) : (
+                <span className="size-7 shrink-0 rounded-aib-sm bg-aib-border-dark" />
+              )}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-semibold text-aib-fg-inverse">
+                  {currentMarkSummary.label}
+                </span>
+                <span className="mt-0.5 block text-[11px] leading-snug text-aib-muted-dark">
+                  {currentMarkSummary.action === 'add'
+                    ? c.timelineAdded
+                    : c.timelineRemoved}
+                  {currentMarkSummary.actorLabel
+                    ? ` · ${currentMarkSummary.actorLabel}`
+                    : ''}
+                  {' · '}
+                  {formatTs(currentMarkSummary.ts)}
+                </span>
+              </span>
+            </div>
+          ) : null}
+
           {error ? (
-            <span className="text-aib-brand">
+            <p className="text-[13px] text-aib-brand">
               {c.error}: {error}
-            </span>
+            </p>
           ) : null}
         </div>
-      </footer>
+
+        <div className="flex shrink-0 flex-col gap-0.5 border-t border-aib-border-dark p-2.5">
+          <Button
+            variant="quiet"
+            size="sm"
+            className="w-full gap-2.5"
+            disabled={!live}
+            onClick={() => setSettingsOpen(true)}
+          >
+            <Settings className="size-4 shrink-0" aria-hidden />
+            {c.roomSettingsOpen}
+          </Button>
+          <Button
+            variant="quiet"
+            size="sm"
+            className="w-full gap-2.5"
+            onClick={() => void copyLink()}
+          >
+            <Link2 className="size-4 shrink-0" aria-hidden />
+            {copied ? c.copied : c.shareLink}
+          </Button>
+          <Button
+            variant="quiet"
+            size="sm"
+            className="w-full gap-2.5"
+            onClick={exportGeoJson}
+          >
+            <Braces className="size-4 shrink-0" aria-hidden />
+            {c.exportGeoJson}
+          </Button>
+          <Button
+            variant="quiet"
+            size="sm"
+            className="w-full gap-2.5"
+            onClick={() => void exportPng()}
+          >
+            <ImageIcon className="size-4 shrink-0" aria-hidden />
+            {c.exportPng}
+          </Button>
+        </div>
+      </aside>
     </div>
+  )
+}
+
+function SymbolToolButton({
+  symbol,
+  active,
+  onSelect,
+}: {
+  symbol: (typeof SYMBOL_CATALOG)[number]
+  active: boolean
+  onSelect: (id: SymbolId) => void
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={() => onSelect(symbol.id)}
+      className={cn(
+        'aib-tool-btn',
+        active ? 'aib-tool-btn-active' : 'aib-tool-btn-idle'
+      )}
+    >
+      <img
+        src={SYMBOL_ICON_URLS[symbol.id]}
+        alt=""
+        width={22}
+        height={22}
+        className="size-[22px] shrink-0"
+      />
+      <span className="min-w-0 flex-1 truncate">{symbol.label}</span>
+      <span
+        className={cn(
+          'shrink-0 text-[11px] font-medium tracking-wide uppercase opacity-70',
+          active ? 'text-aib-muted' : 'text-aib-muted-dark'
+        )}
+      >
+        {geometryKindLabel(symbol.geometry)}
+      </span>
+    </button>
   )
 }

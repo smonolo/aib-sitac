@@ -39,7 +39,7 @@ export function listNamedMoments(events: readonly SitacEvent[]): NamedMoment[] {
   return out
 }
 
-export function isMarkEvent(event: SitacEvent): boolean {
+function isMarkEvent(event: SitacEvent): boolean {
   return event.op === 'upsert_feature' || event.op === 'delete_feature'
 }
 

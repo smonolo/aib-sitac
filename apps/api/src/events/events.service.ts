@@ -1,14 +1,17 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common'
 import { asc, eq } from 'drizzle-orm'
-import {
-  EVENT_OPS,
-  type EventOp,
-  type SitacEvent,
-  type SitacEventPayload,
+import type {
+  DeleteFeaturePayload,
+  EventOp,
+  SitacEvent,
+  UpsertFeaturePayload,
 } from '@aib-sitac/core'
 import { events, getDb, type EventRow } from '../db/index'
+import { MAX_EVENTS_PER_ROOM } from '../common/validation'
 import { incidentEventBus } from './bus'
 import { IncidentsService } from '../incidents/incidents.service'
+
+type AppendPayload = UpsertFeaturePayload | DeleteFeaturePayload
 
 function toEvent(row: EventRow): SitacEvent {
   return {
@@ -29,14 +32,16 @@ export class EventsService {
 
   async list(
     incidentId: string,
-    passphrase: string | undefined
+    passphrase: string | undefined,
+    ip?: string
   ): Promise<SitacEvent[]> {
-    await this.incidents.assertAccess(incidentId, passphrase)
+    await this.incidents.assertAccess(incidentId, passphrase, ip)
     const rows = await getDb()
       .select()
       .from(events)
       .where(eq(events.incidentId, incidentId))
       .orderBy(asc(events.ts), asc(events.createdAt))
+      .limit(MAX_EVENTS_PER_ROOM)
     return rows.map(toEvent)
   }
 
@@ -44,15 +49,15 @@ export class EventsService {
     incidentId: string,
     passphrase: string | undefined,
     input: {
-      op: EventOp
-      payload: SitacEventPayload
+      op: Extract<EventOp, 'upsert_feature' | 'delete_feature'>
+      payload: AppendPayload
       actorLabel?: string | null
-      ts?: string | null
-    }
+    },
+    ip?: string
   ): Promise<SitacEvent> {
-    await this.incidents.assertAccess(incidentId, passphrase)
+    await this.incidents.assertAccess(incidentId, passphrase, ip)
 
-    if (!EVENT_OPS.includes(input.op)) {
+    if (input.op !== 'upsert_feature' && input.op !== 'delete_feature') {
       throw new BadRequestException('Invalid event op')
     }
     if (!input.payload || typeof input.payload !== 'object') {
@@ -63,7 +68,6 @@ export class EventsService {
       .insert(events)
       .values({
         incidentId,
-        ts: input.ts ? new Date(input.ts) : undefined,
         actorLabel: input.actorLabel?.trim() || null,
         op: input.op,
         payload: input.payload,

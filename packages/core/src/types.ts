@@ -101,3 +101,21 @@ export const DEFAULT_CENTER: { lng: number; lat: number; zoom: number } = {
   lat: 45.46,
   zoom: 12,
 }
+
+export const ROME_TZ = 'Europe/Rome' as const
+
+export type ListIncidentsQuery = {
+  q?: string
+  from?: string
+  to?: string
+  page?: number
+  pageSize?: number
+}
+
+export type ListIncidentsResult = {
+  items: SitacIncident[]
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+}

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
+import { SiteFooter } from '@/components/SiteFooter'
+import { SiteNavbar } from '@/components/SiteNavbar'
 import { cn } from '@/lib/utils'
 import './globals.css'
 
@@ -8,7 +10,11 @@ const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
 export const metadata: Metadata = {
   title: 'AIB SITAC',
   description:
-    'Independent tactical situation map for wildfires (incendi boschivi). Unofficial volunteer tool — not affiliated with public institutions.',
+    'Mappa di situazione tattica per incendi boschivi. Strumento indipendente e non ufficiale — non affiliato a istituzioni pubbliche.',
+  icons: {
+    icon: '/aib-assets/favicon.png',
+    apple: '/aib-assets/apple-touch-icon.png',
+  },
 }
 
 export default function RootLayout({
@@ -17,9 +23,13 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="it" className={cn('dark font-sans', geist.variable)}>
-      <body className="bg-aib-canvas-inverse text-aib-fg-inverse antialiased">
-        {children}
+    <html lang="it" className={cn('dark h-full font-sans', geist.variable)}>
+      <body className="flex h-dvh flex-col overflow-hidden bg-aib-canvas-inverse text-aib-fg-inverse antialiased">
+        <SiteNavbar />
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {children}
+        </div>
+        <SiteFooter />
       </body>
     </html>
   )
