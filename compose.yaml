@@ -9,6 +9,7 @@ services:
       - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
 
   api:
     build:
@@ -20,6 +21,7 @@ services:
       DATABASE_URL: ${DATABASE_URL}
     ports:
       - '${API_PORT:-4000}:${API_PORT:-4000}'
+    restart: unless-stopped
 
   web:
     build:
@@ -32,6 +34,7 @@ services:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:${API_PORT:-4000}}
     ports:
       - '${WEB_PORT:-3000}:${WEB_PORT:-3000}'
+    restart: unless-stopped
 
 volumes:
   postgres_data:

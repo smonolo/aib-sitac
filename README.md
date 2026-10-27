@@ -70,7 +70,7 @@ npm test
 
 Same Compose file, pick what you need. This project typically:
 
-- **Web** → Vercel; set `NEXT_PUBLIC_API_URL` to the public API origin
+- **Web** → Vercel project Root Directory `apps/web` (install/build in `apps/web/vercel.json` build `@aib-sitac/core` first). Set `NEXT_PUBLIC_API_URL` to the public API origin
 - **API** → `docker compose up -d --build api` on the VM
 - **DB** → external Postgres via `DATABASE_URL`
 - **TLS** → whatever already runs on the VM (point it at `localhost:$API_PORT`)
