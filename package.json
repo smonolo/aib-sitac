@@ -16,6 +16,8 @@
     "docker:logs": "docker compose logs -f",
     "typecheck": "npm run typecheck --workspace=@aib-sitac/core && npm run typecheck --workspace=@aib-sitac/api && npm run typecheck --workspace=@aib-sitac/web",
     "test": "npm run test --workspace=@aib-sitac/core && npm run test --workspace=@aib-sitac/api && npm run test --workspace=@aib-sitac/web",
+    "db:generate": "npm run drizzle:generate --workspace=@aib-sitac/api",
+    "db:migrate": "npm run drizzle:migrate --workspace=@aib-sitac/api",
     "format": "prettier . --write",
     "format:check": "prettier . --check"
   },

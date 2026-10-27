@@ -75,7 +75,12 @@ Same Compose file, pick what you need. This project typically:
 - **DB** → external Postgres via `DATABASE_URL`
 - **TLS** → whatever already runs on the VM (point it at `localhost:$API_PORT`)
 
-CORS and trust-proxy are hardcoded in the API. Schema `aib_sitac` is applied on startup from `apps/api/sql/schema.sql`.
+CORS and trust-proxy are hardcoded in the API. Schema migrations live in `apps/api/drizzle/` and are applied on API startup (Drizzle Kit). Existing DBs that already have tables are baselined automatically so only new migrations run.
+
+```bash
+npm run db:generate   # after editing apps/api/src/db/schema.ts → apps/api/drizzle/
+npm run db:migrate    # optional; API startup also migrates
+```
 
 ## Privacy notes
 

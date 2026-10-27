@@ -1,4 +1,6 @@
+import { sql } from 'drizzle-orm'
 import {
+  check,
   doublePrecision,
   index,
   integer,
@@ -44,7 +46,13 @@ export const events = aibSitac.table(
       .notNull()
       .defaultNow(),
   },
-  table => [index('events_incident_ts_idx').on(table.incidentId, table.ts)]
+  table => [
+    index('events_incident_ts_idx').on(table.incidentId, table.ts),
+    check(
+      'events_op_check',
+      sql`${table.op} in ('upsert_feature', 'delete_feature', 'named_snapshot', 'set_view')`
+    ),
+  ]
 )
 
 export type IncidentRow = typeof incidents.$inferSelect

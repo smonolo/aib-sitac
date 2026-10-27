@@ -16,8 +16,8 @@ Expo/React Native is **out of scope for v1**. This monorepo is a **website-first
   - Typography: 28px bold titles (`tracking-[-0.4px]`), 15px body, 13px labels/nav, links = fg + underline + `hover:opacity-70`.
   - Web: shadcn primitives in `components/ui/*` restyled to these rules; shared utilities (`.aib-link`, `.aib-list`, `.aib-quiet-btn`, `.aib-tool-btn*`) in `apps/web/app/globals.css`. Marketing layer reuses site `aib-*` classes like Camera.
 - **Map marks:** annotation tools first (**Freccia** / **Forma** / **Testo**), then tactical point icons (not official NATO/PC symbology). Arrows render with a head; shapes are polygons; text marks open a dialog and show a label on the map. Left sidebar: **Cursore** (select) or a tool to place; right sidebar = timeline + room actions. Optional display name via navbar user icon (local only; save / clear). Footer: Guida/Privacy/Termini left; smnl.dev + email right.
-- **ORM**: Drizzle (`apps/api/src/db`) against PostgreSQL via required `DATABASE_URL` (any DB name/host); tables live in schema `aib_sitac` (not `public`). Bootstrap DDL in `apps/api/sql/schema.sql`.
-- Prettier matches AIB Camera (`.prettierrc`).
+- **ORM**: Drizzle (`apps/api/src/db`) against PostgreSQL via required `DATABASE_URL` (any DB name/host); tables live in schema `aib_sitac` (not `public`). Schema changes: edit `schema.ts`, run `npm run drizzle:generate --workspace=@aib-sitac/api`, commit `apps/api/drizzle/`. API applies pending migrations on startup (`ensureSchema`); DBs that already had the old bootstrap tables are baselined so `0000_init` is not re-run.
+- Prettier matches AIB Camera (`.prettierrc`). **Always format** edited/generated code with Prettier before finishing (`npm run format` or `npx prettier --write` on touched paths; `npm run format:check` must pass). Enforced in `.cursor/rules/prettier-format.mdc`.
 - **License.** PolyForm Noncommercial 1.0.0. Do not relicense without an explicit owner request.
 - **i18n.** Italian only for now (no language switcher).
 
@@ -41,12 +41,18 @@ npm run typecheck
 npm test
 ```
 
-## Docs & site sync
+## Docs & site sync (required on every product change)
 
-After product/behavior changes, update `README.md`, `PRIVACY.md`, `TERMS.md`, `AGENTS.md`, and marketing pages under `../mono-lo-repo/apps/site` (`aib-sitac/` layer) when that path exists.
+Whenever you change app behavior, UX, permissions, privacy, map/events/rooms/timeline, or release notes — **before declaring the task done** — update all user- and agent-facing docs that the change affects:
+
+1. **In-repo markdown** (this repo): `README.md`, `PRIVACY.md`, `TERMS.md`, `AGENTS.md`, and any other `*.md` that describes the changed behavior.
+2. **Marketing / public site** (sibling monorepo, if present locally): `../mono-lo-repo/apps/site` — especially `aib-sitac/` (`pages/aib-sitac/` → `index.vue`, `guide.vue`, `privacy.vue`, `terms.vue`), `layouts/aib-sitac.vue`, `utils/aib-sitac-copy.ts`, `components/sitac/Navbar.vue`, and related CSS/assets. Skip the site only if that path is missing; say so briefly when skipping.
+
+Keep copy consistent across IT/EN where both exist, preserve the **unofficial** framing (no institutional affiliation), and keep the **public audience** clear (operator-focused, not membership-gated). Do not leave docs or the site describing old behavior. (Also enforced in `.cursor/rules/docs-and-site-sync.mdc`.)
 
 ## Do not
 
 - Scaffold Expo in `apps/mobile` until mobile work starts (README placeholder only).
 - Present SITAC as part of Coordinamento Operativo AIB.
 - Commit secrets.
+- **Add code comments** (`//`, `/* */`, JSDoc, `#`, JSX comments, narrating TODOs). Prefer clear names; do not introduce new comments when editing. (Also enforced in `.cursor/rules/no-code-comments.mdc`.)

@@ -6,9 +6,13 @@ loadEnv({ path: resolve(__dirname, '../../.env') })
 
 export default defineConfig({
   schema: './src/db/schema.ts',
-  out: './.drizzle',
+  out: './drizzle',
   dialect: 'postgresql',
   schemaFilter: ['aib_sitac'],
+  migrations: {
+    schema: 'aib_sitac',
+    table: '__drizzle_migrations',
+  },
   dbCredentials: {
     url: process.env.DATABASE_URL || '',
   },
