@@ -10,9 +10,8 @@ services:
     command: sh -c "npm run build --workspace=@aib-sitac/core && npm run dev --workspace=@aib-sitac/api"
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgres://sitac:sitac_local_only@db:5432/sitac
+      DATABASE_URL: postgres://sitac:sitac_local_only@db:5432/postgres
       PORT: '4000'
-      CORS_ORIGIN: http://localhost:3000,http://127.0.0.1:3000
     volumes:
       - ./apps/api:/app/apps/api
       - ./packages/core:/app/packages/core

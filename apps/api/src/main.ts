@@ -1,4 +1,6 @@
 import 'reflect-metadata'
+import { resolve } from 'node:path'
+import { config as loadEnv } from 'dotenv'
 import { NestFactory } from '@nestjs/core'
 import { json, urlencoded } from 'express'
 import { AppModule } from './module'
@@ -7,47 +9,30 @@ import {
   securityHeadersMiddleware,
 } from './common/security'
 
-function resolveCorsOrigin(): boolean | string | string[] {
-  const raw = process.env.CORS_ORIGIN?.trim()
-  const isProd = process.env.NODE_ENV === 'production'
+loadEnv({ path: resolve(__dirname, '..', '.env') })
 
-  if (!raw || raw === 'true') {
-    if (isProd) {
-      throw new Error(
-        'CORS_ORIGIN must be an explicit origin (or comma-separated list) in production'
-      )
-    }
-    return true
-  }
-  if (raw === 'false') return false
-  if (raw.includes(',')) {
-    return raw
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean)
-  }
-  return raw
-}
+const CORS_ORIGINS = [
+  'https://aib-sitac.smnl.dev',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+] as const
+
+const JSON_BODY_LIMIT = '256kb'
 
 function applyTrustProxy(app: {
   getHttpAdapter: () => {
     getInstance: () => { set: (k: string, v: unknown) => void }
   }
 }): void {
-  const raw = process.env.TRUST_PROXY?.trim()
-  if (!raw || raw === '0' || raw === 'false') return
-  const value = raw === '1' || raw === 'true' ? 1 : Number(raw)
-  if (!Number.isFinite(value) || value < 1) return
-  app.getHttpAdapter().getInstance().set('trust proxy', value)
+  if (process.env.NODE_ENV !== 'production') return
+  app.getHttpAdapter().getInstance().set('trust proxy', 1)
 }
 
 async function bootstrap() {
-  const bodyLimit = process.env.JSON_BODY_LIMIT?.trim() || '256kb'
-
   const app = await NestFactory.create(AppModule, {
     bodyParser: false,
     cors: {
-      origin: resolveCorsOrigin(),
+      origin: [...CORS_ORIGINS],
       credentials: false,
       methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'X-Passphrase'],
@@ -56,8 +41,8 @@ async function bootstrap() {
   })
 
   applyTrustProxy(app)
-  app.use(json({ limit: bodyLimit }))
-  app.use(urlencoded({ extended: false, limit: bodyLimit }))
+  app.use(json({ limit: JSON_BODY_LIMIT }))
+  app.use(urlencoded({ extended: false, limit: JSON_BODY_LIMIT }))
   app.use(securityHeadersMiddleware)
   app.useGlobalFilters(new GlobalExceptionFilter())
   app.setGlobalPrefix('api')

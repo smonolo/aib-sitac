@@ -16,13 +16,12 @@ export function getPool(): Pool {
     if (!url) {
       throw new Error('DATABASE_URL is required')
     }
-    const max = Number(process.env.DB_POOL_MAX ?? 20)
     pool = new Pool({
       connectionString: url,
-      max: Number.isFinite(max) && max > 0 ? max : 20,
+      max: 20,
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,
-      options: '-c statement_timeout=15000',
+      options: '-c search_path=aib_sitac,public -c statement_timeout=15000',
     })
   }
   return pool

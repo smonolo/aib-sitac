@@ -3,14 +3,16 @@ import {
   index,
   integer,
   jsonb,
-  pgTable,
+  pgSchema,
   text,
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core'
 import { DEFAULT_CENTER, type SitacEventPayload } from '@aib-sitac/core'
 
-export const incidents = pgTable('incidents', {
+export const aibSitac = pgSchema('aib_sitac')
+
+export const incidents = aibSitac.table('incidents', {
   id: uuid('id').primaryKey().defaultRandom(),
   title: text('title').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true })
@@ -27,7 +29,7 @@ export const incidents = pgTable('incidents', {
   schemaVersion: integer('schema_version').notNull().default(1),
 })
 
-export const events = pgTable(
+export const events = aibSitac.table(
   'events',
   {
     id: uuid('id').primaryKey().defaultRandom(),

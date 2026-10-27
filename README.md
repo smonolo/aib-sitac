@@ -38,9 +38,12 @@ Next.js 16 · NestJS 11 · PostgreSQL 17 · Drizzle ORM · shadcn/ui · MapLibre
 ## Local development
 
 ```bash
-cp .env.example .env
+cp apps/web/.env.example apps/web/.env.local
+cp apps/api/.env.example apps/api/.env
 npm ci
 ```
+
+Env is per app: web only needs the API URL; API only needs `DATABASE_URL` (CORS / trust-proxy are hardcoded). Docker Compose injects its own values and does not use these files.
 
 ### Docker Compose
 
@@ -73,10 +76,10 @@ npm test
 
 ## Production topology
 
-- **Web** → Vercel (`apps/web`) at `https://aib-sitac.smnl.dev`; set `NEXT_PUBLIC_API_URL` to the public API origin
-- **API** → long-running Nest host (Fly, Railway, Render, Cloud Run, VPS); set `DATABASE_URL`, `CORS_ORIGIN=https://aib-sitac.smnl.dev` (required in production), and `TRUST_PROXY=1` when behind a reverse proxy
+- **Web** → Vercel (`apps/web`) at `https://aib-sitac.smnl.dev`; in the Vercel project env set `NEXT_PUBLIC_API_URL` (and optionally `API_URL`) to the public API origin — mirrors `apps/web/.env.example`
+- **API** → long-running Nest host (Fly, Railway, Render, Cloud Run, VPS); set `DATABASE_URL` there (not on Vercel). CORS allowlist and trust-proxy (prod) are hardcoded in the API
 - **Marketing** → `https://smnl.dev/aib-sitac` (site layer in mono-lo-repo; app CTA via `NUXT_PUBLIC_AIB_SITAC_APP_URL`)
-- **DB** → managed PostgreSQL; schema applied automatically on API startup from `apps/api/sql/schema.sql`
+- **DB** → set `DATABASE_URL` on the API host to your Postgres; the app uses schema `aib_sitac` inside that database (DDL on startup from `apps/api/sql/schema.sql`). Local Compose defaults to DB name `postgres`.
 
 API hardening (no UX change for normal use): passphrase hashing (async scrypt), attempt rate limits, UUID param checks, strict event payloads (mark add/remove only; server timestamps), JSON body size cap, per-route rate limits, SSE connection caps, security headers.
 
