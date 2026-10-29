@@ -85,6 +85,7 @@ export const copy = {
   deleteMarkConfirm: 'Elimina',
   deleteMarkCancel: 'Annulla',
   moveFeature: 'Sposta',
+  editTextFeature: 'Modifica',
   finishMove: 'Termina',
   cancelMove: 'Annulla',
   moveHint:
@@ -109,14 +110,15 @@ export const copy = {
     'Tocca i vertici della forma. Doppio tocco o «Termina» per chiudere.',
   drawHintText: 'Tocca dove vuoi il testo sulla mappa.',
   selectedMarkHow:
-    'Usa «Sposta» per riposizionarlo (trascina, poi «Termina»), oppure «Elimina» per rimuoverlo (conferma richiesta). Solo in «Ora», non mentre scrubbi la timeline.',
+    'Usa «Sposta» per riposizionarlo (trascina, poi «Termina»), «Modifica» per cambiare il testo di un’etichetta, oppure «Elimina» per rimuoverlo (conferma richiesta). Solo in «Ora», non mentre scrubbi la timeline.',
   selectToolPurpose:
-    'Seleziona un segno esistente per vederne i dettagli, spostarlo o rimuoverlo.',
+    'Seleziona un segno esistente per vederne i dettagli, spostarlo, modificarne il testo o rimuoverlo.',
   selectToolHow:
-    'Tocca un segno sulla mappa per selezionarlo. Poi «Sposta» (trascina e «Termina») o «Elimina». Il tocco sul vuoto deseleziona.',
+    'Tocca un segno sulla mappa per selezionarlo. Poi «Sposta» (trascina e «Termina»), «Modifica» (solo testo) o «Elimina». Il tocco sul vuoto deseleziona.',
   textDialogTitle: 'Testo sulla mappa',
   textDialogPlaceholder: 'Scrivi l’etichetta…',
   textDialogConfirm: 'Aggiungi',
+  textDialogSave: 'Salva',
   textDialogCancel: 'Annulla',
   geomPoint: 'punto',
   geomLine: 'linea',

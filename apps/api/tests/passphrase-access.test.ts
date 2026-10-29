@@ -1,5 +1,3 @@
-import assert from 'node:assert/strict'
-import { describe, test } from 'node:test'
 import { DEFAULT_CENTER } from '@aib-sitac/core'
 import {
   normalizePassphraseHeader,
@@ -28,25 +26,25 @@ function sampleRow(overrides: Partial<IncidentRow> = {}): IncidentRow {
 
 describe('normalizePassphraseHeader', () => {
   test('returns undefined for missing or empty values', () => {
-    assert.equal(normalizePassphraseHeader(undefined), undefined)
-    assert.equal(normalizePassphraseHeader(''), undefined)
-    assert.equal(normalizePassphraseHeader([]), undefined)
-    assert.equal(normalizePassphraseHeader(['']), undefined)
+    expect(normalizePassphraseHeader(undefined)).toBe(undefined)
+    expect(normalizePassphraseHeader('')).toBe(undefined)
+    expect(normalizePassphraseHeader([])).toBe(undefined)
+    expect(normalizePassphraseHeader([''])).toBe(undefined)
   })
 
   test('accepts a single header string', () => {
-    assert.equal(normalizePassphraseHeader('segreto'), 'segreto')
+    expect(normalizePassphraseHeader('segreto')).toBe('segreto')
   })
 
   test('uses the first value when the header is repeated', () => {
-    assert.equal(normalizePassphraseHeader(['first', 'second']), 'first')
+    expect(normalizePassphraseHeader(['first', 'second'])).toBe('first')
   })
 
   test('does not keep oversized header values', () => {
     const huge = 'y'.repeat(PASSPHRASE_MAX_LENGTH + 500)
-    const normalized = normalizePassphraseHeader(huge)
-    assert.ok(normalized)
-    assert.equal(normalized.length, PASSPHRASE_MAX_LENGTH + 1)
+    expect(normalizePassphraseHeader(huge)).toHaveLength(
+      PASSPHRASE_MAX_LENGTH + 1
+    )
   })
 })
 
@@ -54,8 +52,8 @@ describe('verifyPassphrase length guard', () => {
   test('rejects oversized passphrases without matching', async () => {
     const hash = await hashPassphrase('ok-pass')
     const oversized = 'x'.repeat(PASSPHRASE_MAX_LENGTH + 1)
-    assert.equal(await verifyPassphrase(oversized, hash), false)
-    assert.equal(await verifyPassphrase('', hash), false)
+    expect(await verifyPassphrase(oversized, hash)).toBe(false)
+    expect(await verifyPassphrase('', hash)).toBe(false)
   })
 })
 
@@ -68,34 +66,34 @@ describe('incidentAccessChangedBus', () => {
     incidentAccessChangedBus.next({ incidentId: 'room-a' })
     incidentAccessChangedBus.next({ incidentId: 'room-b' })
     sub.unsubscribe()
-    assert.deepEqual(seen, ['room-a', 'room-b'])
+    expect(seen).toEqual(['room-a', 'room-b'])
   })
 })
 
 describe('incidentFromRow', () => {
   test('keeps map view for open rooms even when list-redacting', () => {
     const dto = incidentFromRow(sampleRow(), { redactMapView: true })
-    assert.equal(dto.centerLng, 10.5)
-    assert.equal(dto.centerLat, 45.1)
-    assert.equal(dto.zoom, 14)
-    assert.equal(dto.hasPassphrase, false)
+    expect(dto.centerLng).toBe(10.5)
+    expect(dto.centerLat).toBe(45.1)
+    expect(dto.zoom).toBe(14)
+    expect(dto.hasPassphrase).toBe(false)
   })
 
   test('redacts map view for protected rooms on the public list', () => {
     const dto = incidentFromRow(sampleRow({ passphraseHash: 'scrypt$ab$cd' }), {
       redactMapView: true,
     })
-    assert.equal(dto.hasPassphrase, true)
-    assert.equal(dto.centerLng, DEFAULT_CENTER.lng)
-    assert.equal(dto.centerLat, DEFAULT_CENTER.lat)
-    assert.equal(dto.zoom, DEFAULT_CENTER.zoom)
-    assert.equal(dto.title, 'Bosco')
+    expect(dto.hasPassphrase).toBe(true)
+    expect(dto.centerLng).toBe(DEFAULT_CENTER.lng)
+    expect(dto.centerLat).toBe(DEFAULT_CENTER.lat)
+    expect(dto.zoom).toBe(DEFAULT_CENTER.zoom)
+    expect(dto.title).toBe('Bosco')
   })
 
   test('returns real map view after authorized access', () => {
     const dto = incidentFromRow(sampleRow({ passphraseHash: 'scrypt$ab$cd' }))
-    assert.equal(dto.centerLng, 10.5)
-    assert.equal(dto.centerLat, 45.1)
-    assert.equal(dto.zoom, 14)
+    expect(dto.centerLng).toBe(10.5)
+    expect(dto.centerLat).toBe(45.1)
+    expect(dto.zoom).toBe(14)
   })
 })

@@ -1,5 +1,3 @@
-import assert from 'node:assert/strict'
-import { describe, test } from 'node:test'
 import type { SitacFeature } from '@aib-sitac/core'
 import { draftToDisplayGeoJson, featuresToDisplayGeoJson } from './map-display'
 
@@ -73,65 +71,59 @@ const polygonFeature: SitacFeature = {
 describe('featuresToDisplayGeoJson', () => {
   test('point stays a single feature without mark icon', () => {
     const fc = featuresToDisplayGeoJson([pointFeature])
-    assert.equal(fc.features.length, 1)
-    assert.equal(fc.features[0]?.properties?.isMarkIcon, false)
-    assert.equal(fc.features[0]?.properties?.isArrowHead, false)
+    expect(fc.features.length).toBe(1)
+    expect(fc.features[0]?.properties?.isMarkIcon).toBe(false)
+    expect(fc.features[0]?.properties?.isArrowHead).toBe(false)
   })
 
   test('line adds midpoint mark icon', () => {
     const fc = featuresToDisplayGeoJson([lineFeature])
-    assert.equal(fc.features.length, 2)
+    expect(fc.features.length).toBe(2)
     const icon = fc.features.find(f => f.properties?.isMarkIcon)
-    assert.ok(icon)
-    assert.equal(icon?.geometry.type, 'Point')
-    assert.equal(icon?.properties?.symbolId, 'road_closed')
-    assert.equal(
-      fc.features.some(f => f.properties?.isArrowHead),
-      false
-    )
+    expect(icon).toBeTruthy()
+    expect(icon?.geometry.type).toBe('Point')
+    expect(icon?.properties?.symbolId).toBe('road_closed')
+    expect(fc.features.some(f => f.properties?.isArrowHead)).toBe(false)
   })
 
   test('arrow adds mark icon and arrow head with bearing', () => {
     const fc = featuresToDisplayGeoJson([arrowFeature])
-    assert.equal(fc.features.length, 3)
+    expect(fc.features.length).toBe(3)
     const head = fc.features.find(f => f.properties?.isArrowHead)
-    assert.ok(head)
-    assert.equal(head?.geometry.type, 'Point')
-    assert.deepEqual(
-      (head?.geometry as GeoJSON.Point).coordinates,
-      [9.22, 45.52]
-    )
-    assert.equal(typeof head?.properties?.bearing, 'number')
-    assert.equal(head?.properties?.id, 'a1')
+    expect(head).toBeTruthy()
+    expect(head?.geometry.type).toBe('Point')
+    expect((head?.geometry as GeoJSON.Point).coordinates).toEqual([9.22, 45.52])
+    expect(typeof head?.properties?.bearing).toBe('number')
+    expect(head?.properties?.id).toBe('a1')
   })
 
   test('polygon adds centroid mark icon', () => {
     const fc = featuresToDisplayGeoJson([polygonFeature])
-    assert.equal(fc.features.length, 2)
+    expect(fc.features.length).toBe(2)
     const icon = fc.features.find(f => f.properties?.isMarkIcon)
-    assert.ok(icon)
-    assert.equal(icon?.geometry.type, 'Point')
-    assert.equal(icon?.properties?.symbolId, 'burned_area')
+    expect(icon).toBeTruthy()
+    expect(icon?.geometry.type).toBe('Point')
+    expect(icon?.properties?.symbolId).toBe('burned_area')
   })
 
   test('empty input', () => {
     const fc = featuresToDisplayGeoJson([])
-    assert.equal(fc.type, 'FeatureCollection')
-    assert.equal(fc.features.length, 0)
+    expect(fc.type).toBe('FeatureCollection')
+    expect(fc.features.length).toBe(0)
   })
 })
 
 describe('draftToDisplayGeoJson', () => {
   test('empty or null kind yields no features', () => {
-    assert.equal(draftToDisplayGeoJson([], 'line').features.length, 0)
-    assert.equal(draftToDisplayGeoJson([[9, 45]], null).features.length, 0)
+    expect(draftToDisplayGeoJson([], 'line').features.length).toBe(0)
+    expect(draftToDisplayGeoJson([[9, 45]], null).features.length).toBe(0)
   })
 
   test('single point draft', () => {
     const fc = draftToDisplayGeoJson([[9, 45]], 'line', '#111')
-    assert.equal(fc.features.length, 1)
-    assert.equal(fc.features[0]?.geometry.type, 'Point')
-    assert.equal(fc.features[0]?.properties?.color, '#111')
+    expect(fc.features.length).toBe(1)
+    expect(fc.features[0]?.geometry.type).toBe('Point')
+    expect(fc.features[0]?.properties?.color).toBe('#111')
   })
 
   test('line draft includes vertex points', () => {
@@ -140,13 +132,12 @@ describe('draftToDisplayGeoJson', () => {
       [9.1, 45.1],
     ]
     const fc = draftToDisplayGeoJson(coords, 'line')
-    assert.ok(fc.features.some(f => f.geometry.type === 'LineString'))
-    assert.equal(
+    expect(fc.features.some(f => f.geometry.type === 'LineString')).toBeTruthy()
+    expect(
       fc.features.filter(
         f => f.geometry.type === 'Point' && !f.properties?.isArrowHead
-      ).length,
-      2
-    )
+      ).length
+    ).toBe(2)
   })
 
   test('arrow draft includes arrow head', () => {
@@ -159,9 +150,9 @@ describe('draftToDisplayGeoJson', () => {
       '#E85D04'
     )
     const head = fc.features.find(f => f.properties?.isArrowHead)
-    assert.ok(head)
-    assert.equal(head?.properties?.color, '#E85D04')
-    assert.equal(typeof head?.properties?.bearing, 'number')
+    expect(head).toBeTruthy()
+    expect(head?.properties?.color).toBe('#E85D04')
+    expect(typeof head?.properties?.bearing).toBe('number')
   })
 
   test('polygon draft closes the ring when enough vertices', () => {
@@ -174,9 +165,9 @@ describe('draftToDisplayGeoJson', () => {
       'polygon'
     )
     const poly = fc.features.find(f => f.geometry.type === 'Polygon')
-    assert.ok(poly)
+    expect(poly).toBeTruthy()
     const ring = (poly?.geometry as GeoJSON.Polygon).coordinates[0]!
-    assert.deepEqual(ring[0], ring[ring.length - 1])
+    expect(ring[0]).toEqual(ring[ring.length - 1])
   })
 
   test('polygon draft with two points has no polygon geometry yet', () => {
@@ -187,9 +178,6 @@ describe('draftToDisplayGeoJson', () => {
       ],
       'polygon'
     )
-    assert.equal(
-      fc.features.some(f => f.geometry.type === 'Polygon'),
-      false
-    )
+    expect(fc.features.some(f => f.geometry.type === 'Polygon')).toBe(false)
   })
 })

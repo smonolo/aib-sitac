@@ -3,9 +3,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useParams } from 'next/navigation'
-import { DEFAULT_CENTER, type SitacIncident } from '@aib-sitac/core'
-import { getIncident, getIncidentGate, isPassphraseError } from '@/lib/api'
+import type { SitacIncident } from '@aib-sitac/core'
+import { getIncident, getIncidentGate } from '@/lib/api'
 import { t } from '@/lib/i18n'
+import {
+  classifyUnlockError,
+  lockedIncidentStub,
+  resolveRoomGate,
+  unlockErrorMessage,
+} from '@/lib/room-access'
 import { clearPassphrase, readPassphrase, writePassphrase } from '@/lib/storage'
 
 const SitacMap = dynamic(
@@ -19,20 +25,6 @@ const SitacMap = dynamic(
     ),
   }
 )
-
-function lockedStub(id: string): SitacIncident {
-  return {
-    id,
-    title: t().roomLockedTitle,
-    createdAt: new Date(0).toISOString(),
-    createdBy: null,
-    centerLng: DEFAULT_CENTER.lng,
-    centerLat: DEFAULT_CENTER.lat,
-    zoom: DEFAULT_CENTER.zoom,
-    hasPassphrase: true,
-    schemaVersion: 1,
-  }
-}
 
 export default function IncidentPage() {
   const params = useParams<{ id: string }>()
@@ -49,11 +41,11 @@ export default function IncidentPage() {
   const enterLocked = useCallback(() => {
     clearPassphrase(id)
     setPassphrase(null)
-    setIncident(lockedStub(id))
+    setIncident(lockedIncidentStub(id, c.roomLockedTitle))
     setLocked(true)
     setUnlockError(null)
     setError(null)
-  }, [id])
+  }, [c.roomLockedTitle, id])
 
   useEffect(() => {
     let cancelled = false
@@ -64,31 +56,24 @@ export default function IncidentPage() {
       try {
         const gate = await getIncidentGate(id)
         if (cancelled) return
-
-        if (gate.hasPassphrase) {
-          const stored = readPassphrase(id)
-          if (!stored) {
-            enterLocked()
-            return
-          }
-          try {
-            const data = await getIncident(id, stored)
-            if (cancelled) return
-            setIncident(data)
-            setPassphrase(stored)
-            setLocked(false)
-          } catch (err) {
-            if (cancelled) return
-            if (isPassphraseError(err)) enterLocked()
-            else setError(String(err))
-          }
+        const result = await resolveRoomGate({
+          hasPassphrase: gate.hasPassphrase,
+          storedPassphrase: readPassphrase(id),
+          loadIncident: pass => getIncident(id, pass),
+        })
+        if (cancelled) return
+        if (result.status === 'locked') {
+          enterLocked()
           return
         }
-
-        const data = await getIncident(id, null)
-        if (cancelled) return
-        setIncident(data)
-        setPassphrase(null)
+        if (result.status === 'error') {
+          setIncident(null)
+          setLocked(false)
+          setError(result.message)
+          return
+        }
+        setIncident(result.incident)
+        setPassphrase(result.passphrase)
         setLocked(false)
       } catch (err) {
         if (cancelled) return
@@ -115,11 +100,11 @@ export default function IncidentPage() {
       setIncident(data)
       setLocked(false)
     } catch (err) {
-      if (isPassphraseError(err)) {
-        setUnlockError(c.passphraseWrong)
-      } else {
-        setUnlockError(String(err))
-      }
+      setUnlockError(
+        unlockErrorMessage(classifyUnlockError(err), {
+          passphraseWrong: c.passphraseWrong,
+        })
+      )
     } finally {
       setUnlockBusy(false)
     }

@@ -11,6 +11,7 @@ import { t } from '@/lib/i18n'
 type Props = {
   open: boolean
   value: string
+  confirmLabel: string
   onChange: (value: string) => void
   onConfirm: () => void
   onCancel: () => void
@@ -19,6 +20,7 @@ type Props = {
 export function TextMarkDialog({
   open,
   value,
+  confirmLabel,
   onChange,
   onConfirm,
   onCancel,
@@ -79,7 +81,7 @@ export function TextMarkDialog({
             className="flex-1"
             disabled={!value.trim()}
           >
-            {c.textDialogConfirm}
+            {confirmLabel}
           </Button>
         </div>
       </form>

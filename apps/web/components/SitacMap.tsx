@@ -73,6 +73,16 @@ import { MarkIcon, markIconSize } from '@/components/MarkIcon'
 import { addSitacSourcesAndLayers, PICK_LAYERS } from '@/lib/map-layers'
 import { formatTs, readActor } from '@/lib/storage'
 import {
+  canBeginMove,
+  canBeginTextEdit,
+  canConfirmTextEdit,
+  canDeleteSelected,
+  canShowTextEditAction,
+  textEditDraftFromFeature,
+  textEditUpsertPayload,
+} from '@/lib/mark-controls'
+import { applyTextMarkLabel } from '@/lib/text-mark'
+import {
   markScrubIndex,
   readTimelineStepParam,
   roomUrlWithTimelineStep,
@@ -132,7 +142,9 @@ export function SitacMap({
   const [copied, setCopied] = useState(false)
   const [mapReady, setMapReady] = useState(false)
   const [pendingText, setPendingText] = useState<PendingText | null>(null)
+  const [editingText, setEditingText] = useState(false)
   const [textDraft, setTextDraft] = useState('')
+  const [textEditBusy, setTextEditBusy] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [actorOpen, setActorOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
@@ -455,17 +467,17 @@ export function SitacMap({
     async (geometry: SitacGeometry, text?: string) => {
       if (!symbol) return
       const featureId = crypto.randomUUID()
-      const trimmed = text?.trim()
       const event = await pushEvent('upsert_feature', {
         featureId,
         geometry,
-        properties: {
-          symbolId: symbol.id,
-          geometryKind: symbol.geometry,
-          color: symbol.color,
-          note: trimmed || undefined,
-          label: trimmed || undefined,
-        },
+        properties: applyTextMarkLabel(
+          {
+            symbolId: symbol.id,
+            geometryKind: symbol.geometry,
+            color: symbol.color,
+          },
+          text ?? ''
+        ),
       })
       if (!event) return
       setDrawCoords([])
@@ -486,10 +498,17 @@ export function SitacMap({
     await commitGeometry({ type: 'LineString', coordinates: drawCoords })
   }, [commitGeometry, drawCoords, symbol])
 
+  const cancelTextEdit = useCallback(() => {
+    if (textEditBusy) return
+    setEditingText(false)
+    setTextDraft('')
+  }, [textEditBusy])
+
   const cancelDraw = useCallback(() => {
     setDrawCoords([])
     setDrawMode('idle')
     setPendingText(null)
+    setEditingText(false)
     setTextDraft('')
   }, [])
 
@@ -542,6 +561,47 @@ export function SitacMap({
     )
   }
 
+  const beginTextEdit = () => {
+    const feature = selectedFeatureRef.current
+    if (
+      !feature ||
+      !canBeginTextEdit({
+        locked,
+        live,
+        moveMode,
+        textEditBusy,
+        feature,
+      })
+    ) {
+      return
+    }
+    setMarkInfoOpen(false)
+    setDeleteConfirmOpen(false)
+    setTextDraft(textEditDraftFromFeature(feature))
+    setEditingText(true)
+  }
+
+  const confirmTextEdit = async () => {
+    const feature = selectedFeatureRef.current
+    if (
+      !feature ||
+      !canConfirmTextEdit({ textEditBusy, draft: textDraft, feature })
+    ) {
+      return
+    }
+    const payload = textEditUpsertPayload(feature, textDraft)
+    if (!payload) return
+    setTextEditBusy(true)
+    try {
+      const event = await pushEvent('upsert_feature', payload)
+      if (!event) return
+      setEditingText(false)
+      setTextDraft('')
+    } finally {
+      setTextEditBusy(false)
+    }
+  }
+
   useEffect(() => {
     const map = mapRef.current
     if (!mapReady || !map) return
@@ -571,6 +631,7 @@ export function SitacMap({
         locked ||
         !live ||
         pendingText ||
+        editingText ||
         moveMode ||
         moveDraggingRef.current
       ) {
@@ -608,7 +669,8 @@ export function SitacMap({
         !live ||
         selectMode ||
         drawMode !== 'drawing' ||
-        pendingText
+        pendingText ||
+        editingText
       ) {
         return
       }
@@ -626,6 +688,7 @@ export function SitacMap({
   }, [
     commitGeometry,
     drawMode,
+    editingText,
     finishDraw,
     live,
     locked,
@@ -637,10 +700,22 @@ export function SitacMap({
   ])
 
   const deleteSelected = async () => {
-    if (!selectedId || !live || deleteBusy || moveMode) return
+    if (
+      !selectedId ||
+      !canDeleteSelected({
+        locked,
+        live,
+        selectedId,
+        deleteBusy,
+        moveMode,
+      })
+    ) {
+      return
+    }
+    const featureId = selectedId
     setDeleteBusy(true)
     try {
-      const event = await pushEvent('delete_feature', { featureId: selectedId })
+      const event = await pushEvent('delete_feature', { featureId })
       if (!event) return
       setSelectedId(null)
       setDeleteConfirmOpen(false)
@@ -691,6 +766,11 @@ export function SitacMap({
     if (moveMode && live && selectedId && selectMode) return
     if (moveMode) cancelMove()
   }, [cancelMove, live, moveMode, selectMode, selectedId])
+
+  useEffect(() => {
+    if (editingText && live && selectedId && selectMode) return
+    if (editingText) cancelTextEdit()
+  }, [cancelTextEdit, editingText, live, selectMode, selectedId])
 
   useEffect(() => {
     const map = mapRef.current
@@ -885,6 +965,8 @@ export function SitacMap({
   useEffect(() => {
     setMarkInfoOpen(false)
     setDeleteConfirmOpen(false)
+    setEditingText(false)
+    setTextDraft('')
   }, [tool, selectedId, drawMode, moveMode])
 
   useEffect(() => {
@@ -1285,7 +1367,15 @@ export function SitacMap({
                     <Button
                       variant="secondary"
                       size="sm"
-                      disabled={!live || moveBusy}
+                      disabled={
+                        !canBeginMove({
+                          locked,
+                          live,
+                          selectedId,
+                          moveBusy,
+                          moveMode,
+                        })
+                      }
                       onClick={() => {
                         setMoveMode(true)
                         setMoveDelta(null)
@@ -1293,10 +1383,41 @@ export function SitacMap({
                     >
                       {c.moveFeature}
                     </Button>
+                    {canShowTextEditAction({
+                      selectMode,
+                      selectedId,
+                      moveMode,
+                      geometryKind: selectedFeature?.properties.geometryKind,
+                    }) ? (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={
+                          !canBeginTextEdit({
+                            locked,
+                            live,
+                            moveMode,
+                            textEditBusy,
+                            feature: selectedFeature,
+                          })
+                        }
+                        onClick={beginTextEdit}
+                      >
+                        {c.editTextFeature}
+                      </Button>
+                    ) : null}
                     <Button
                       variant="destructive"
                       size="sm"
-                      disabled={!live}
+                      disabled={
+                        !canDeleteSelected({
+                          locked,
+                          live,
+                          selectedId,
+                          deleteBusy: false,
+                          moveMode,
+                        })
+                      }
                       onClick={() => setDeleteConfirmOpen(true)}
                     >
                       {c.deleteFeature}
@@ -1352,11 +1473,18 @@ export function SitacMap({
           }
         />
         <TextMarkDialog
-          open={pendingText != null}
+          open={pendingText != null || editingText}
           value={textDraft}
+          confirmLabel={editingText ? c.textDialogSave : c.textDialogConfirm}
           onChange={setTextDraft}
-          onConfirm={confirmTextMark}
-          onCancel={cancelDraw}
+          onConfirm={() => {
+            if (editingText) {
+              void confirmTextEdit().catch(err => setError(String(err)))
+              return
+            }
+            confirmTextMark()
+          }}
+          onCancel={editingText ? cancelTextEdit : cancelDraw}
         />
         <RoomSettingsDialog
           open={settingsOpen && !locked}

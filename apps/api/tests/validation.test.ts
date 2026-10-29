@@ -1,5 +1,3 @@
-import assert from 'node:assert/strict'
-import { describe, test } from 'node:test'
 import {
   MAX_EVENT_PAYLOAD_BYTES,
   appendEventSchema,
@@ -10,12 +8,12 @@ import {
 describe('uuidParamSchema', () => {
   test('accepts uuid', () => {
     const id = '550e8400-e29b-41d4-a716-446655440000'
-    assert.equal(uuidParamSchema.parse(id), id)
+    expect(uuidParamSchema.parse(id)).toBe(id)
   })
 
   test('rejects non-uuid', () => {
-    assert.equal(uuidParamSchema.safeParse('not-a-uuid').success, false)
-    assert.equal(uuidParamSchema.safeParse('').success, false)
+    expect(uuidParamSchema.safeParse('not-a-uuid').success).toBe(false)
+    expect(uuidParamSchema.safeParse('').success).toBe(false)
   })
 })
 
@@ -36,7 +34,7 @@ describe('appendEventSchema', () => {
       },
       actorLabel: 'Sala',
     })
-    assert.equal(parsed.success, true)
+    expect(parsed.success).toBe(true)
   })
 
   test('accepts delete_feature', () => {
@@ -44,7 +42,195 @@ describe('appendEventSchema', () => {
       op: 'delete_feature',
       payload: { featureId },
     })
-    assert.equal(parsed.success, true)
+    expect(parsed.success).toBe(true)
+  })
+
+  test('accepts text mark upsert with label and note', () => {
+    const parsed = appendEventSchema.safeParse({
+      op: 'upsert_feature',
+      payload: {
+        featureId,
+        geometry: { type: 'Point', coordinates: [9.2, 45.5] },
+        properties: {
+          symbolId: 'note',
+          geometryKind: 'text',
+          label: 'Punto di raccolta',
+          note: 'Punto di raccolta',
+          color: '#111111',
+        },
+      },
+      actorLabel: 'Sala',
+    })
+    expect(parsed.success).toBe(true)
+  })
+
+  test('accepts text mark edit upsert for the same featureId', () => {
+    const parsed = appendEventSchema.safeParse({
+      op: 'upsert_feature',
+      payload: {
+        featureId,
+        geometry: { type: 'Point', coordinates: [9.2, 45.5] },
+        properties: {
+          symbolId: 'note',
+          geometryKind: 'text',
+          label: 'Aggiornato',
+          note: 'Aggiornato',
+        },
+      },
+      actorLabel: 'Sala',
+    })
+    expect(parsed.success).toBe(true)
+  })
+
+  test('rejects overlong text label', () => {
+    const parsed = appendEventSchema.safeParse({
+      op: 'upsert_feature',
+      payload: {
+        featureId,
+        geometry: { type: 'Point', coordinates: [9.2, 45.5] },
+        properties: {
+          symbolId: 'note',
+          geometryKind: 'text',
+          label: 'x'.repeat(201),
+        },
+      },
+    })
+    expect(parsed.success).toBe(false)
+  })
+
+  test('accepts label at max length 200', () => {
+    const parsed = appendEventSchema.safeParse({
+      op: 'upsert_feature',
+      payload: {
+        featureId,
+        geometry: { type: 'Point', coordinates: [9.2, 45.5] },
+        properties: {
+          symbolId: 'note',
+          geometryKind: 'text',
+          label: 'x'.repeat(200),
+        },
+      },
+    })
+    expect(parsed.success).toBe(true)
+  })
+
+  test('rejects overlong note field', () => {
+    const parsed = appendEventSchema.safeParse({
+      op: 'upsert_feature',
+      payload: {
+        featureId,
+        geometry: { type: 'Point', coordinates: [9.2, 45.5] },
+        properties: {
+          symbolId: 'note',
+          geometryKind: 'text',
+          note: 'n'.repeat(2001),
+        },
+      },
+    })
+    expect(parsed.success).toBe(false)
+  })
+
+  test('accepts text mark without label or note', () => {
+    const parsed = appendEventSchema.safeParse({
+      op: 'upsert_feature',
+      payload: {
+        featureId,
+        geometry: { type: 'Point', coordinates: [9.2, 45.5] },
+        properties: {
+          symbolId: 'note',
+          geometryKind: 'text',
+        },
+      },
+    })
+    expect(parsed.success).toBe(true)
+  })
+
+  test('rejects invalid color on text mark', () => {
+    const parsed = appendEventSchema.safeParse({
+      op: 'upsert_feature',
+      payload: {
+        featureId,
+        geometry: { type: 'Point', coordinates: [9.2, 45.5] },
+        properties: {
+          symbolId: 'note',
+          geometryKind: 'text',
+          label: 'x',
+          color: 'red',
+        },
+      },
+    })
+    expect(parsed.success).toBe(false)
+  })
+
+  test('does not enforce symbolId/geometryKind pairing', () => {
+    const parsed = appendEventSchema.safeParse({
+      op: 'upsert_feature',
+      payload: {
+        featureId,
+        geometry: { type: 'Point', coordinates: [9.2, 45.5] },
+        properties: {
+          symbolId: 'hotspot',
+          geometryKind: 'text',
+          label: 'x',
+        },
+      },
+    })
+    expect(parsed.success).toBe(true)
+  })
+
+  test('does not require Point geometry for text marks', () => {
+    const parsed = appendEventSchema.safeParse({
+      op: 'upsert_feature',
+      payload: {
+        featureId,
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [9.2, 45.5],
+            [9.3, 45.6],
+          ],
+        },
+        properties: {
+          symbolId: 'note',
+          geometryKind: 'text',
+          label: 'x',
+        },
+      },
+    })
+    expect(parsed.success).toBe(true)
+  })
+
+  test('rejects out-of-range point coordinates', () => {
+    const parsed = appendEventSchema.safeParse({
+      op: 'upsert_feature',
+      payload: {
+        featureId,
+        geometry: { type: 'Point', coordinates: [200, 45.5] },
+        properties: {
+          symbolId: 'note',
+          geometryKind: 'text',
+          label: 'x',
+        },
+      },
+    })
+    expect(parsed.success).toBe(false)
+  })
+
+  test('rejects actorLabel longer than max', () => {
+    const parsed = appendEventSchema.safeParse({
+      op: 'upsert_feature',
+      payload: {
+        featureId,
+        geometry: { type: 'Point', coordinates: [9.2, 45.5] },
+        properties: {
+          symbolId: 'note',
+          geometryKind: 'text',
+          label: 'x',
+        },
+      },
+      actorLabel: 'a'.repeat(101),
+    })
+    expect(parsed.success).toBe(false)
   })
 
   test('rejects legacy named_snapshot writes', () => {
@@ -52,7 +238,7 @@ describe('appendEventSchema', () => {
       op: 'named_snapshot',
       payload: { name: 'x' },
     })
-    assert.equal(parsed.success, false)
+    expect(parsed.success).toBe(false)
   })
 
   test('rejects client-controlled ts field', () => {
@@ -61,7 +247,7 @@ describe('appendEventSchema', () => {
       payload: { featureId },
       ts: '2020-01-01T00:00:00.000Z',
     })
-    assert.equal(parsed.success, false)
+    expect(parsed.success).toBe(false)
   })
 
   test('rejects unknown symbolId', () => {
@@ -73,7 +259,7 @@ describe('appendEventSchema', () => {
         properties: { symbolId: 'nato_tank', geometryKind: 'point' },
       },
     })
-    assert.equal(parsed.success, false)
+    expect(parsed.success).toBe(false)
   })
 
   test('rejects overlong line', () => {
@@ -86,7 +272,7 @@ describe('appendEventSchema', () => {
         properties: { symbolId: 'road_closed', geometryKind: 'line' },
       },
     })
-    assert.equal(parsed.success, false)
+    expect(parsed.success).toBe(false)
   })
 
   test('rejects extra payload keys', () => {
@@ -94,19 +280,19 @@ describe('appendEventSchema', () => {
       op: 'delete_feature',
       payload: { featureId, extra: true },
     })
-    assert.equal(parsed.success, false)
+    expect(parsed.success).toBe(false)
   })
 })
 
 describe('assertPayloadSize', () => {
   test('allows normal payloads', () => {
-    assert.doesNotThrow(() =>
+    expect(() =>
       assertPayloadSize({ featureId: 'x', geometry: { type: 'Point' } })
-    )
+    ).not.toThrow()
   })
 
   test('rejects oversized payloads', () => {
     const huge = { blob: 'x'.repeat(MAX_EVENT_PAYLOAD_BYTES) }
-    assert.throws(() => assertPayloadSize(huge))
+    expect(() => assertPayloadSize(huge)).toThrow()
   })
 })

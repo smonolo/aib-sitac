@@ -1,5 +1,3 @@
-import assert from 'node:assert/strict'
-import { describe, test } from 'node:test'
 import { SYMBOL_IDS } from '@aib-sitac/core'
 import {
   copy,
@@ -12,37 +10,40 @@ import {
 
 describe('copy catalog', () => {
   test('t returns Italian catalog', () => {
-    assert.equal(t().brand, 'AIB SITAC')
-    assert.equal(t().tagline, copy.tagline)
+    expect(t().brand).toBe('AIB SITAC')
+    expect(t().tagline).toBe(copy.tagline)
   })
 
   test('required operator strings exist', () => {
     const c = t()
-    assert.ok(c.createCta)
-    assert.ok(c.palette)
-    assert.ok(c.timeline)
-    assert.ok(c.moveFeature)
-    assert.ok(c.finishMove)
-    assert.ok(c.moveHint)
-    assert.match(c.unofficial, /non ufficiale/i)
-    assert.match(c.unofficial, /Protezione Civile/)
+    expect(c.createCta).toBeTruthy()
+    expect(c.palette).toBeTruthy()
+    expect(c.timeline).toBeTruthy()
+    expect(c.moveFeature).toBeTruthy()
+    expect(c.editTextFeature).toBeTruthy()
+    expect(c.finishMove).toBeTruthy()
+    expect(c.moveHint).toBeTruthy()
+    expect(c.textDialogSave).toBeTruthy()
+    expect(c.selectedMarkHow).toMatch(/Modifica/)
+    expect(c.unofficial).toMatch(/non ufficiale/i)
+    expect(c.unofficial).toMatch(/Protezione Civile/)
   })
 
   test('symbolPurpose covers every catalog symbol', () => {
     for (const id of SYMBOL_IDS) {
-      assert.ok(copy.symbolPurpose[id], `missing symbolPurpose for ${id}`)
-      assert.ok(copy.symbolPurpose[id].length > 10)
+      expect(copy.symbolPurpose[id]).toBeTruthy()
+      expect(copy.symbolPurpose[id].length > 10).toBeTruthy()
     }
   })
 })
 
 describe('geometryKindLabel', () => {
   test('maps kinds to Italian labels', () => {
-    assert.equal(geometryKindLabel('point'), copy.geomPoint)
-    assert.equal(geometryKindLabel('line'), copy.geomLine)
-    assert.equal(geometryKindLabel('arrow'), copy.geomArrow)
-    assert.equal(geometryKindLabel('polygon'), copy.geomArea)
-    assert.equal(geometryKindLabel('text'), copy.geomText)
+    expect(geometryKindLabel('point')).toBe(copy.geomPoint)
+    expect(geometryKindLabel('line')).toBe(copy.geomLine)
+    expect(geometryKindLabel('arrow')).toBe(copy.geomArrow)
+    expect(geometryKindLabel('polygon')).toBe(copy.geomArea)
+    expect(geometryKindLabel('text')).toBe(copy.geomText)
   })
 })
 
@@ -50,17 +51,17 @@ describe('drawHintForGeometry', () => {
   test('returns a non-empty hint per geometry', () => {
     for (const kind of ['point', 'line', 'arrow', 'polygon', 'text'] as const) {
       const hint = drawHintForGeometry(kind)
-      assert.ok(hint.length > 5)
+      expect(hint.length > 5).toBeTruthy()
     }
   })
 })
 
 describe('format helpers', () => {
   test('formatStepOf', () => {
-    assert.equal(formatStepOf(2, 5), '2/5')
+    expect(formatStepOf(2, 5)).toBe('2/5')
   })
 
   test('formatPageOf', () => {
-    assert.equal(formatPageOf(1, 3), 'Pagina 1 / 3')
+    expect(formatPageOf(1, 3)).toBe('Pagina 1 / 3')
   })
 })

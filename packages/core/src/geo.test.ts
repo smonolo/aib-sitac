@@ -1,5 +1,3 @@
-import assert from 'node:assert/strict'
-import { describe, test } from 'node:test'
 import {
   lineBearingDegrees,
   lineMidpoint,
@@ -9,14 +7,13 @@ import {
 
 describe('translateGeometry', () => {
   test('shifts point', () => {
-    assert.deepEqual(
-      translateGeometry({ type: 'Point', coordinates: [9, 45] }, 0.1, -0.2),
-      { type: 'Point', coordinates: [9.1, 44.8] }
-    )
+    expect(
+      translateGeometry({ type: 'Point', coordinates: [9, 45] }, 0.1, -0.2)
+    ).toEqual({ type: 'Point', coordinates: [9.1, 44.8] })
   })
 
   test('shifts line', () => {
-    assert.deepEqual(
+    expect(
       translateGeometry(
         {
           type: 'LineString',
@@ -27,15 +24,14 @@ describe('translateGeometry', () => {
         },
         1,
         1
-      ),
-      {
-        type: 'LineString',
-        coordinates: [
-          [2, 3],
-          [4, 5],
-        ],
-      }
-    )
+      )
+    ).toEqual({
+      type: 'LineString',
+      coordinates: [
+        [2, 3],
+        [4, 5],
+      ],
+    })
   })
 
   test('shifts polygon and keeps ring closed', () => {
@@ -54,7 +50,7 @@ describe('translateGeometry', () => {
       2,
       3
     )
-    assert.deepEqual(moved, {
+    expect(moved).toEqual({
       type: 'Polygon',
       coordinates: [
         [
@@ -71,86 +67,82 @@ describe('translateGeometry', () => {
 describe('lineBearingDegrees', () => {
   test('north', () => {
     const deg = lineBearingDegrees([9, 45], [9, 46])
-    assert.ok(deg < 1 || deg > 359)
+    expect(deg < 1 || deg > 359).toBeTruthy()
   })
 
   test('east', () => {
     const deg = lineBearingDegrees([9, 45], [10, 45])
-    assert.ok(Math.abs(deg - 90) < 1)
+    expect(Math.abs(deg - 90) < 1).toBeTruthy()
   })
 
   test('south', () => {
     const deg = lineBearingDegrees([9, 46], [9, 45])
-    assert.ok(Math.abs(deg - 180) < 1)
+    expect(Math.abs(deg - 180) < 1).toBeTruthy()
   })
 
   test('west', () => {
     const deg = lineBearingDegrees([10, 45], [9, 45])
-    assert.ok(Math.abs(deg - 270) < 1)
+    expect(Math.abs(deg - 270) < 1).toBeTruthy()
   })
 })
 
 describe('lineMidpoint', () => {
   test('empty returns origin', () => {
-    assert.deepEqual(lineMidpoint([]), [0, 0])
+    expect(lineMidpoint([])).toEqual([0, 0])
   })
 
   test('single vertex', () => {
-    assert.deepEqual(lineMidpoint([[3, 4]]), [3, 4])
+    expect(lineMidpoint([[3, 4]])).toEqual([3, 4])
   })
 
   test('odd vertex count', () => {
-    assert.deepEqual(
+    expect(
       lineMidpoint([
         [0, 0],
         [1, 1],
         [2, 2],
-      ]),
-      [1, 1]
-    )
+      ])
+    ).toEqual([1, 1])
   })
 
   test('even vertex count averages mid segment', () => {
-    assert.deepEqual(
+    expect(
       lineMidpoint([
         [0, 0],
         [2, 2],
-      ]),
-      [1, 1]
-    )
+      ])
+    ).toEqual([1, 1])
   })
 })
 
 describe('ringCentroid', () => {
   test('empty returns origin', () => {
-    assert.deepEqual(ringCentroid([]), [0, 0])
+    expect(ringCentroid([])).toEqual([0, 0])
   })
 
   test('single vertex', () => {
-    assert.deepEqual(ringCentroid([[5, 6]]), [5, 6])
+    expect(ringCentroid([[5, 6]])).toEqual([5, 6])
   })
 
   test('averages vertices and ignores closing duplicate', () => {
-    assert.deepEqual(
+    expect(
       ringCentroid([
         [0, 0],
         [2, 0],
         [2, 2],
         [0, 2],
         [0, 0],
-      ]),
-      [1, 1]
-    )
+      ])
+    ).toEqual([1, 1])
   })
 
   test('open ring does not drop last vertex', () => {
-    assert.deepEqual(
+    expect(
       ringCentroid([
         [0, 0],
         [4, 0],
         [0, 4],
-      ]),
-      [4 / 3, 4 / 3]
-    )
+      ])
+    ).toEqual([4 / 3, 4 / 3])
   })
 })

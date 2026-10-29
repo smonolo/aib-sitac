@@ -1,5 +1,3 @@
-import assert from 'node:assert/strict'
-import { describe, test } from 'node:test'
 import {
   featuresToGeoJson,
   foldFeatures,
@@ -66,18 +64,18 @@ const base: SitacEvent[] = [
 describe('foldFeatures', () => {
   test('returns all live features', () => {
     const features = foldFeatures(base)
-    assert.equal(features.length, 1)
-    assert.equal(features[0]?.id, 'f2')
+    expect(features.length).toBe(1)
+    expect(features[0]?.id).toBe('f2')
   })
 
   test('respects untilTs', () => {
     const atSnap = foldFeatures(base, '2026-10-26T10:05:00.000Z')
-    assert.equal(atSnap.length, 1)
-    assert.equal(atSnap[0]?.id, 'f1')
+    expect(atSnap.length).toBe(1)
+    expect(atSnap[0]?.id).toBe('f1')
   })
 
   test('empty events yields empty features', () => {
-    assert.deepEqual(foldFeatures([]), [])
+    expect(foldFeatures([])).toEqual([])
   })
 
   test('ignores set_view and named_snapshot for map state', () => {
@@ -99,7 +97,7 @@ describe('foldFeatures', () => {
         payload: { name: 'Label only' },
       },
     ]
-    assert.deepEqual(foldFeatures(events), [])
+    expect(foldFeatures(events)).toEqual([])
   })
 
   test('later upsert replaces earlier feature', () => {
@@ -123,13 +121,180 @@ describe('foldFeatures', () => {
       },
     ]
     const features = foldFeatures(events)
-    assert.equal(features.length, 1)
-    assert.equal(features[0]?.properties.symbolId, 'lookout')
-    assert.equal(features[0]?.properties.label, 'Updated')
-    assert.deepEqual(features[0]?.geometry, {
+    expect(features.length).toBe(1)
+    expect(features[0]?.properties.symbolId).toBe('lookout')
+    expect(features[0]?.properties.label).toBe('Updated')
+    expect(features[0]?.geometry).toEqual({
       type: 'Point',
       coordinates: [9.3, 45.6],
     })
+  })
+
+  test('text mark edit keeps geometry and updates label/note', () => {
+    const events: SitacEvent[] = [
+      {
+        id: 'n1',
+        incidentId: 'i1',
+        ts: '2026-10-26T10:00:00.000Z',
+        actorLabel: 'Sala',
+        op: 'upsert_feature',
+        payload: {
+          featureId: 'note-1',
+          geometry: { type: 'Point', coordinates: [9.1, 45.2] },
+          properties: {
+            symbolId: 'note',
+            geometryKind: 'text',
+            label: 'Vecchio',
+            note: 'Vecchio',
+            color: '#111111',
+          },
+        },
+      },
+      {
+        id: 'n2',
+        incidentId: 'i1',
+        ts: '2026-10-26T10:05:00.000Z',
+        actorLabel: 'Sala',
+        op: 'upsert_feature',
+        payload: {
+          featureId: 'note-1',
+          geometry: { type: 'Point', coordinates: [9.1, 45.2] },
+          properties: {
+            symbolId: 'note',
+            geometryKind: 'text',
+            label: 'Nuovo',
+            note: 'Nuovo',
+            color: '#111111',
+          },
+        },
+      },
+    ]
+    const live = foldFeatures(events)
+    expect(live).toHaveLength(1)
+    expect(live[0]?.properties.label).toBe('Nuovo')
+    expect(live[0]?.properties.note).toBe('Nuovo')
+    expect(live[0]?.geometry).toEqual({
+      type: 'Point',
+      coordinates: [9.1, 45.2],
+    })
+    const beforeEdit = foldFeatures(events, '2026-10-26T10:00:00.000Z')
+    expect(beforeEdit[0]?.properties.label).toBe('Vecchio')
+  })
+
+  test('text mark move then edit folds to latest geometry and label', () => {
+    const events: SitacEvent[] = [
+      {
+        id: 'n1',
+        incidentId: 'i1',
+        ts: '2026-10-26T10:00:00.000Z',
+        actorLabel: 'Sala',
+        op: 'upsert_feature',
+        payload: {
+          featureId: 'note-1',
+          geometry: { type: 'Point', coordinates: [9.0, 45.0] },
+          properties: {
+            symbolId: 'note',
+            geometryKind: 'text',
+            label: 'A',
+            note: 'A',
+          },
+        },
+      },
+      {
+        id: 'n2',
+        incidentId: 'i1',
+        ts: '2026-10-26T10:01:00.000Z',
+        actorLabel: 'Sala',
+        op: 'upsert_feature',
+        payload: {
+          featureId: 'note-1',
+          geometry: { type: 'Point', coordinates: [9.5, 45.5] },
+          properties: {
+            symbolId: 'note',
+            geometryKind: 'text',
+            label: 'A',
+            note: 'A',
+          },
+        },
+      },
+      {
+        id: 'n3',
+        incidentId: 'i1',
+        ts: '2026-10-26T10:02:00.000Z',
+        actorLabel: 'Sala',
+        op: 'upsert_feature',
+        payload: {
+          featureId: 'note-1',
+          geometry: { type: 'Point', coordinates: [9.5, 45.5] },
+          properties: {
+            symbolId: 'note',
+            geometryKind: 'text',
+            label: 'B',
+            note: 'B',
+          },
+        },
+      },
+    ]
+    const live = foldFeatures(events)
+    expect(live).toHaveLength(1)
+    expect(live[0]?.geometry).toEqual({
+      type: 'Point',
+      coordinates: [9.5, 45.5],
+    })
+    expect(live[0]?.properties.label).toBe('B')
+    expect(
+      foldFeatures(events, '2026-10-26T10:01:00.000Z')[0]?.properties.label
+    ).toBe('A')
+  })
+
+  test('delete after text edit removes the feature', () => {
+    const events: SitacEvent[] = [
+      {
+        id: 'n1',
+        incidentId: 'i1',
+        ts: '2026-10-26T10:00:00.000Z',
+        actorLabel: 'Sala',
+        op: 'upsert_feature',
+        payload: {
+          featureId: 'note-1',
+          geometry: { type: 'Point', coordinates: [9.1, 45.2] },
+          properties: {
+            symbolId: 'note',
+            geometryKind: 'text',
+            label: 'Gone',
+            note: 'Gone',
+          },
+        },
+      },
+      {
+        id: 'n2',
+        incidentId: 'i1',
+        ts: '2026-10-26T10:05:00.000Z',
+        actorLabel: 'Sala',
+        op: 'upsert_feature',
+        payload: {
+          featureId: 'note-1',
+          geometry: { type: 'Point', coordinates: [9.1, 45.2] },
+          properties: {
+            symbolId: 'note',
+            geometryKind: 'text',
+            label: 'Edited',
+            note: 'Edited',
+          },
+        },
+      },
+      {
+        id: 'n3',
+        incidentId: 'i1',
+        ts: '2026-10-26T10:10:00.000Z',
+        actorLabel: 'Sala',
+        op: 'delete_feature',
+        payload: { featureId: 'note-1' },
+      },
+    ]
+    expect(foldFeatures(events)).toEqual([])
+    expect(foldFeatures(events, '2026-10-26T10:05:00.000Z')).toHaveLength(1)
+    expect(listMarkEvents(events)).toHaveLength(3)
   })
 
   test('delete of unknown feature is a no-op', () => {
@@ -143,40 +308,41 @@ describe('foldFeatures', () => {
         payload: { featureId: 'missing' },
       },
     ]
-    assert.deepEqual(foldFeatures(events), [])
+    expect(foldFeatures(events)).toEqual([])
   })
 })
 
 describe('listNamedMoments', () => {
   test('extracts named snapshots', () => {
     const moments = listNamedMoments(base)
-    assert.equal(moments.length, 1)
-    assert.equal(moments[0]?.name, 'Primo fronte')
-    assert.equal(moments[0]?.eventId, 'e2')
+    expect(moments.length).toBe(1)
+    expect(moments[0]?.name).toBe('Primo fronte')
+    expect(moments[0]?.eventId).toBe('e2')
   })
 
   test('empty when none', () => {
-    assert.deepEqual(listNamedMoments([base[0]!]), [])
+    expect(listNamedMoments([base[0]!])).toEqual([])
   })
 })
 
 describe('listMarkEvents', () => {
   test('is every add/remove, not named labels', () => {
     const marks = listMarkEvents(base)
-    assert.equal(marks.length, 3)
-    assert.deepEqual(
-      marks.map(e => e.op),
-      ['upsert_feature', 'upsert_feature', 'delete_feature']
-    )
+    expect(marks.length).toBe(3)
+    expect(marks.map(e => e.op)).toEqual([
+      'upsert_feature',
+      'upsert_feature',
+      'delete_feature',
+    ])
   })
 })
 
 describe('featuresToGeoJson', () => {
   test('wraps folded features', () => {
     const fc = featuresToGeoJson(foldFeatures(base, '2026-10-26T10:05:00.000Z'))
-    assert.equal(fc.type, 'FeatureCollection')
-    assert.equal(fc.features.length, 1)
-    assert.equal(fc.features[0]?.properties?.id, 'f1')
-    assert.equal(fc.features[0]?.properties?.symbolId, 'hotspot')
+    expect(fc.type).toBe('FeatureCollection')
+    expect(fc.features.length).toBe(1)
+    expect(fc.features[0]?.properties?.id).toBe('f1')
+    expect(fc.features[0]?.properties?.symbolId).toBe('hotspot')
   })
 })
