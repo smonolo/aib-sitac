@@ -84,6 +84,11 @@ export const copy = {
     'Rimuovere «{name}» dalla mappa? L’azione resta nella timeline.',
   deleteMarkConfirm: 'Elimina',
   deleteMarkCancel: 'Annulla',
+  moveFeature: 'Sposta',
+  finishMove: 'Termina',
+  cancelMove: 'Annulla',
+  moveHint:
+    'Trascina il segno sulla mappa per riposizionarlo, poi «Termina» per salvare (solo in «Ora»). «Annulla» esce senza salvare.',
   finishDraw: 'Termina',
   cancelDraw: 'Annulla',
   unlock: 'Sblocca',
@@ -99,11 +104,11 @@ export const copy = {
     'Tocca i vertici della forma. Doppio tocco o «Termina» per chiudere.',
   drawHintText: 'Tocca dove vuoi il testo sulla mappa.',
   selectedMarkHow:
-    'Usa «Elimina» per rimuoverlo dalla mappa (conferma richiesta; solo in «Ora», non mentre scrubbi la timeline).',
+    'Usa «Sposta» per riposizionarlo (trascina, poi «Termina»), oppure «Elimina» per rimuoverlo (conferma richiesta). Solo in «Ora», non mentre scrubbi la timeline.',
   selectToolPurpose:
-    'Seleziona un segno esistente per vederne i dettagli o rimuoverlo.',
+    'Seleziona un segno esistente per vederne i dettagli, spostarlo o rimuoverlo.',
   selectToolHow:
-    'Tocca un segno sulla mappa per selezionarlo. Il tocco sul vuoto non fa nulla.',
+    'Tocca un segno sulla mappa per selezionarlo. Poi «Sposta» (trascina e «Termina») o «Elimina». Il tocco sul vuoto deseleziona.',
   textDialogTitle: 'Testo sulla mappa',
   textDialogPlaceholder: 'Scrivi l’etichetta…',
   textDialogConfirm: 'Aggiungi',

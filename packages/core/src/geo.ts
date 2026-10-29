@@ -1,4 +1,25 @@
-import type { LonLat } from './types'
+import type { LonLat, SitacGeometry } from './types'
+
+export function translateGeometry(
+  geometry: SitacGeometry,
+  dLng: number,
+  dLat: number
+): SitacGeometry {
+  const shift = (point: LonLat): LonLat => [point[0] + dLng, point[1] + dLat]
+  if (geometry.type === 'Point') {
+    return { type: 'Point', coordinates: shift(geometry.coordinates) }
+  }
+  if (geometry.type === 'LineString') {
+    return {
+      type: 'LineString',
+      coordinates: geometry.coordinates.map(shift),
+    }
+  }
+  return {
+    type: 'Polygon',
+    coordinates: geometry.coordinates.map(ring => ring.map(shift)),
+  }
+}
 
 export function lineBearingDegrees(from: LonLat, to: LonLat): number {
   const [lng1, lat1] = from

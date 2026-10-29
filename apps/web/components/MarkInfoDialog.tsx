@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { X } from 'lucide-react'
+import type { SymbolId } from '@aib-sitac/core'
 import { MarkIcon, markIconSize } from '@/components/MarkIcon'
 import { IconButton } from '@/components/ui/icon-button'
 import { t } from '@/lib/i18n'
@@ -10,7 +11,7 @@ type Props = {
   open: boolean
   title: string
   kindLabel?: string
-  iconSrc?: string
+  symbolId?: SymbolId
   icon?: ReactNode
   purpose: string
   howTo: string
@@ -21,7 +22,7 @@ export function MarkInfoDialog({
   open,
   title,
   kindLabel,
-  iconSrc,
+  symbolId,
   icon,
   purpose,
   howTo,
@@ -42,8 +43,8 @@ export function MarkInfoDialog({
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
-            {iconSrc ? (
-              <MarkIcon src={iconSrc} size={markIconSize.dialog} />
+            {symbolId ? (
+              <MarkIcon symbolId={symbolId} size={markIconSize.dialog} />
             ) : icon ? (
               <span
                 className="flex shrink-0 items-center justify-center text-aib-fg dark:text-aib-fg-inverse [&_svg]:size-5"

@@ -1,6 +1,72 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
-import { lineBearingDegrees, lineMidpoint, ringCentroid } from './geo'
+import {
+  lineBearingDegrees,
+  lineMidpoint,
+  ringCentroid,
+  translateGeometry,
+} from './geo'
+
+describe('translateGeometry', () => {
+  test('shifts point', () => {
+    assert.deepEqual(
+      translateGeometry({ type: 'Point', coordinates: [9, 45] }, 0.1, -0.2),
+      { type: 'Point', coordinates: [9.1, 44.8] }
+    )
+  })
+
+  test('shifts line', () => {
+    assert.deepEqual(
+      translateGeometry(
+        {
+          type: 'LineString',
+          coordinates: [
+            [1, 2],
+            [3, 4],
+          ],
+        },
+        1,
+        1
+      ),
+      {
+        type: 'LineString',
+        coordinates: [
+          [2, 3],
+          [4, 5],
+        ],
+      }
+    )
+  })
+
+  test('shifts polygon and keeps ring closed', () => {
+    const moved = translateGeometry(
+      {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [0, 0],
+            [1, 0],
+            [1, 1],
+            [0, 0],
+          ],
+        ],
+      },
+      2,
+      3
+    )
+    assert.deepEqual(moved, {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [2, 3],
+          [3, 3],
+          [3, 4],
+          [2, 3],
+        ],
+      ],
+    })
+  })
+})
 
 describe('lineBearingDegrees', () => {
   test('north', () => {

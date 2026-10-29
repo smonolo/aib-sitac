@@ -32,8 +32,10 @@ import {
   isAnnotationSymbol,
   listMarkEvents,
   summarizeMarkEvents,
+  translateGeometry,
   type LonLat,
   type SitacEvent,
+  type SitacFeature,
   type SitacGeometry,
   type SitacIncident,
   type SymbolId,
@@ -67,7 +69,6 @@ import {
   featuresToDisplayGeoJson,
 } from '@/lib/map-display'
 import { MarkIcon, markIconSize } from '@/components/MarkIcon'
-import { symbolIconDataUrl } from '@/lib/map-icons'
 import { addSitacSourcesAndLayers, PICK_LAYERS } from '@/lib/map-layers'
 import { formatTs, readActor } from '@/lib/storage'
 import {
@@ -81,10 +82,6 @@ import { cn } from '@/lib/utils'
 type ActiveTool = 'select' | SymbolId
 type DrawMode = 'idle' | 'drawing'
 type PendingText = { coordinates: LonLat }
-
-const SYMBOL_ICON_URLS = Object.fromEntries(
-  SYMBOL_CATALOG.map(s => [s.id, symbolIconDataUrl(s.id, s.color)])
-) as Record<SymbolId, string>
 
 const ANNOTATION_SYMBOLS = SYMBOL_CATALOG.filter(s => isAnnotationSymbol(s.id))
 const TACTICAL_SYMBOLS = SYMBOL_CATALOG.filter(s => !isAnnotationSymbol(s.id))
@@ -133,11 +130,24 @@ export function SitacMap({
   const [markInfoOpen, setMarkInfoOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deleteBusy, setDeleteBusy] = useState(false)
+  const [moveMode, setMoveMode] = useState(false)
+  const [moveDelta, setMoveDelta] = useState<LonLat | null>(null)
+  const [moveBusy, setMoveBusy] = useState(false)
+  const [moveOverride, setMoveOverride] = useState<{
+    featureId: string
+    geometry: SitacGeometry
+  } | null>(null)
   const [eventsReady, setEventsReady] = useState(false)
   const [profileActor, setProfileActor] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const actorWaitersRef = useRef<Array<(name: string | null) => void>>([])
   const urlStepAppliedRef = useRef(false)
+  const moveOriginRef = useRef<LonLat | null>(null)
+  const moveDragBaseRef = useRef<LonLat>([0, 0])
+  const moveDeltaRef = useRef<LonLat | null>(null)
+  const moveDraggingRef = useRef(false)
+  const moveBusyRef = useRef(false)
+  const selectedFeatureRef = useRef<SitacFeature | null>(null)
 
   const selectMode = tool === 'select'
   const symbol = selectMode ? null : (getSymbol(tool) ?? null)
@@ -146,9 +156,34 @@ export function SitacMap({
     () => foldFeatures(events, scrubTs),
     [events, scrubTs]
   )
+  moveDeltaRef.current = moveDelta
+  const displayFeatures = useMemo(() => {
+    let next = features
+    if (moveOverride) {
+      next = next.map(feature =>
+        feature.id === moveOverride.featureId
+          ? { ...feature, geometry: moveOverride.geometry }
+          : feature
+      )
+    }
+    if (moveMode && selectedId && moveDelta) {
+      const [dLng, dLat] = moveDelta
+      if (dLng !== 0 || dLat !== 0) {
+        next = next.map(feature =>
+          feature.id === selectedId
+            ? {
+                ...feature,
+                geometry: translateGeometry(feature.geometry, dLng, dLat),
+              }
+            : feature
+        )
+      }
+    }
+    return next
+  }, [features, moveDelta, moveMode, moveOverride, selectedId])
   const displayGeoJson = useMemo(
-    () => featuresToDisplayGeoJson(features),
-    [features]
+    () => featuresToDisplayGeoJson(displayFeatures),
+    [displayFeatures]
   )
   const markEvents = useMemo(() => listMarkEvents(events), [events])
   const markSummaries = useMemo(
@@ -413,9 +448,22 @@ export function SitacMap({
     setTextDraft('')
   }, [])
 
+  const cancelMove = useCallback(() => {
+    moveDraggingRef.current = false
+    moveOriginRef.current = null
+    moveDragBaseRef.current = [0, 0]
+    moveDeltaRef.current = null
+    moveBusyRef.current = false
+    setMoveMode(false)
+    setMoveDelta(null)
+    setMoveBusy(false)
+    setMoveOverride(null)
+  }, [])
+
   const selectSelectTool = () => {
     setTool('select')
     cancelDraw()
+    cancelMove()
     setMenuOpen(false)
   }
 
@@ -423,6 +471,7 @@ export function SitacMap({
     setTool(id)
     setSelectedId(null)
     cancelDraw()
+    cancelMove()
     setMenuOpen(false)
   }
 
@@ -471,7 +520,7 @@ export function SitacMap({
     }
 
     const onClick = (e: MapMouseEvent) => {
-      if (!live || pendingText) return
+      if (!live || pendingText || moveMode || moveDraggingRef.current) return
 
       if (selectMode || !symbol) {
         setSelectedId(featureIdAt(e.point))
@@ -517,13 +566,14 @@ export function SitacMap({
     finishDraw,
     live,
     mapReady,
+    moveMode,
     pendingText,
     selectMode,
     symbol,
   ])
 
   const deleteSelected = async () => {
-    if (!selectedId || !live || deleteBusy) return
+    if (!selectedId || !live || deleteBusy || moveMode) return
     setDeleteBusy(true)
     try {
       const event = await pushEvent('delete_feature', { featureId: selectedId })
@@ -534,6 +584,124 @@ export function SitacMap({
       setDeleteBusy(false)
     }
   }
+
+  const finishMove = useCallback(async () => {
+    const feature = selectedFeatureRef.current
+    const delta = moveDeltaRef.current
+    if (!feature || moveBusyRef.current) return
+    if (!delta || (Math.abs(delta[0]) < 1e-10 && Math.abs(delta[1]) < 1e-10)) {
+      cancelMove()
+      return
+    }
+    const geometry = translateGeometry(feature.geometry, delta[0], delta[1])
+    moveBusyRef.current = true
+    moveDraggingRef.current = false
+    moveOriginRef.current = null
+    moveDragBaseRef.current = [0, 0]
+    moveDeltaRef.current = null
+    setMoveBusy(true)
+    setMoveOverride({ featureId: feature.id, geometry })
+    setMoveMode(false)
+    setMoveDelta(null)
+    try {
+      const event = await pushEvent('upsert_feature', {
+        featureId: feature.id,
+        geometry,
+        properties: { ...feature.properties },
+      })
+      if (!event) {
+        setMoveOverride(null)
+        return
+      }
+    } catch (err) {
+      setMoveOverride(null)
+      setError(String(err))
+    } finally {
+      moveBusyRef.current = false
+      setMoveBusy(false)
+      setMoveOverride(null)
+    }
+  }, [cancelMove, pushEvent])
+
+  useEffect(() => {
+    if (moveMode && live && selectedId && selectMode) return
+    if (moveMode) cancelMove()
+  }, [cancelMove, live, moveMode, selectMode, selectedId])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!mapReady || !map) return
+
+    if (moveMode) {
+      map.dragPan.disable()
+      map.getCanvas().style.cursor = 'grab'
+    } else {
+      map.dragPan.enable()
+      map.getCanvas().style.cursor = ''
+      return
+    }
+
+    const featureIdAt = (point: { x: number; y: number }): string | null => {
+      const layers = PICK_LAYERS.filter(id => map.getLayer(id))
+      if (layers.length === 0) return null
+      const pad = 16
+      const hits = map.queryRenderedFeatures(
+        [
+          [point.x - pad, point.y - pad],
+          [point.x + pad, point.y + pad],
+        ],
+        { layers: [...layers] }
+      )
+      const hit = hits[0]
+      if (!hit) return null
+      const fromProps = hit.properties?.id
+      if (fromProps != null && fromProps !== '') return String(fromProps)
+      const fromId = hit.id
+      if (fromId != null && fromId !== '') return String(fromId)
+      return null
+    }
+
+    const onMouseDown = (e: MapMouseEvent) => {
+      if (!selectedId || moveBusyRef.current) return
+      if (featureIdAt(e.point) !== selectedId) return
+      e.preventDefault()
+      moveDraggingRef.current = true
+      moveDragBaseRef.current = moveDeltaRef.current ?? [0, 0]
+      moveOriginRef.current = [e.lngLat.lng, e.lngLat.lat]
+      map.getCanvas().style.cursor = 'grabbing'
+    }
+
+    const onMouseMove = (e: MapMouseEvent) => {
+      if (!moveDraggingRef.current || !moveOriginRef.current) return
+      const [originLng, originLat] = moveOriginRef.current
+      const [baseLng, baseLat] = moveDragBaseRef.current
+      setMoveDelta([
+        baseLng + (e.lngLat.lng - originLng),
+        baseLat + (e.lngLat.lat - originLat),
+      ])
+    }
+
+    const endDrag = () => {
+      if (!moveDraggingRef.current) return
+      moveDraggingRef.current = false
+      moveOriginRef.current = null
+      map.getCanvas().style.cursor = 'grab'
+    }
+
+    map.on('mousedown', onMouseDown)
+    map.on('mousemove', onMouseMove)
+    map.on('mouseup', endDrag)
+    window.addEventListener('mouseup', endDrag)
+
+    return () => {
+      map.off('mousedown', onMouseDown)
+      map.off('mousemove', onMouseMove)
+      map.off('mouseup', endDrag)
+      window.removeEventListener('mouseup', endDrag)
+      map.dragPan.enable()
+      map.getCanvas().style.cursor = ''
+    }
+  }, [mapReady, moveMode, selectedId])
 
   const exportGeoJson = () => {
     const blob = new Blob(
@@ -591,6 +759,7 @@ export function SitacMap({
     () => (selectedId ? features.find(f => f.id === selectedId) : null),
     [features, selectedId]
   )
+  selectedFeatureRef.current = selectedFeature ?? null
   const selectedSymbol = selectedFeature
     ? (getSymbol(selectedFeature.properties.symbolId) ?? null)
     : null
@@ -599,7 +768,7 @@ export function SitacMap({
   const drawing = drawMode === 'drawing' && !selectMode
 
   const markInfo = useMemo((): {
-    iconSrc?: string
+    symbolId?: SymbolId
     icon?: React.ReactNode
     title: string
     kindLabel?: string
@@ -608,7 +777,7 @@ export function SitacMap({
   } | null => {
     if (symbol) {
       return {
-        iconSrc: SYMBOL_ICON_URLS[symbol.id],
+        symbolId: symbol.id,
         title: symbol.label,
         kindLabel: geometryKindLabel(symbol.geometry),
         purpose: c.symbolPurpose[symbol.id],
@@ -619,11 +788,11 @@ export function SitacMap({
       const label =
         selectedFeature.properties.label?.trim() || selectedSymbol.label
       return {
-        iconSrc: SYMBOL_ICON_URLS[selectedSymbol.id],
+        symbolId: selectedSymbol.id,
         title: label,
         kindLabel: geometryKindLabel(selectedFeature.properties.geometryKind),
         purpose: c.symbolPurpose[selectedSymbol.id],
-        howTo: c.selectedMarkHow,
+        howTo: moveMode ? c.moveHint : c.selectedMarkHow,
       }
     }
     if (selectMode) {
@@ -636,11 +805,13 @@ export function SitacMap({
     }
     return null
   }, [
+    c.moveHint,
     c.selectTool,
     c.selectToolHow,
     c.selectToolPurpose,
     c.selectedMarkHow,
     c.symbolPurpose,
+    moveMode,
     selectMode,
     selectedFeature,
     selectedSymbol,
@@ -650,10 +821,22 @@ export function SitacMap({
   useEffect(() => {
     setMarkInfoOpen(false)
     setDeleteConfirmOpen(false)
-  }, [tool, selectedId, drawMode])
+  }, [tool, selectedId, drawMode, moveMode])
+
+  useEffect(() => {
+    if (!moveMode) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') cancelMove()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [cancelMove, moveMode])
 
   const showMarkControls =
-    markInfo != null || drawing || (selectMode && selectedId != null)
+    markInfo != null ||
+    drawing ||
+    moveMode ||
+    (selectMode && selectedId != null)
 
   return (
     <div className="relative flex min-h-0 flex-1 bg-aib-canvas text-aib-fg md:gap-3 md:p-3 dark:bg-aib-canvas-inverse dark:text-aib-fg-inverse">
@@ -732,9 +915,9 @@ export function SitacMap({
           ) : null}
         </section>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        <div className="min-h-0 flex-1 overflow-hidden p-3">
           <div
-            className="flex flex-col overflow-hidden rounded-aib-sm bg-aib-canvas dark:bg-aib-canvas-inverse"
+            className="flex max-h-full flex-col overflow-y-auto rounded-aib-sm bg-aib-canvas dark:bg-aib-canvas-inverse"
             aria-label={c.palette}
           >
             <div className="flex flex-col gap-0.5 p-1.5">
@@ -930,7 +1113,7 @@ export function SitacMap({
                   <>
                     {currentMarkSummary.symbolId ? (
                       <MarkIcon
-                        src={SYMBOL_ICON_URLS[currentMarkSummary.symbolId]}
+                        symbolId={currentMarkSummary.symbolId}
                         size={markIconSize.timeline}
                       />
                     ) : (
@@ -978,9 +1161,9 @@ export function SitacMap({
               >
                 {markInfo ? (
                   <div className="flex min-w-0 items-center gap-2 px-1">
-                    {markInfo.iconSrc ? (
+                    {markInfo.symbolId ? (
                       <MarkIcon
-                        src={markInfo.iconSrc}
+                        symbolId={markInfo.symbolId}
                         size={markIconSize.control}
                       />
                     ) : markInfo.icon ? (
@@ -1022,15 +1205,47 @@ export function SitacMap({
                     </Button>
                   </>
                 ) : null}
-                {selectMode && selectedId ? (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    disabled={!live}
-                    onClick={() => setDeleteConfirmOpen(true)}
-                  >
-                    {c.deleteFeature}
-                  </Button>
+                {selectMode && selectedId && !moveMode ? (
+                  <>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={!live || moveBusy}
+                      onClick={() => {
+                        setMoveMode(true)
+                        setMoveDelta(null)
+                      }}
+                    >
+                      {c.moveFeature}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={!live}
+                      onClick={() => setDeleteConfirmOpen(true)}
+                    >
+                      {c.deleteFeature}
+                    </Button>
+                  </>
+                ) : null}
+                {moveMode ? (
+                  <>
+                    <Button
+                      size="sm"
+                      disabled={moveBusy}
+                      onClick={() => void finishMove()}
+                    >
+                      {c.finishMove}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={moveBusy}
+                      onClick={cancelMove}
+                    >
+                      {c.cancelMove}
+                    </Button>
+                  </>
                 ) : null}
               </div>
             </div>
@@ -1040,7 +1255,7 @@ export function SitacMap({
           open={markInfoOpen && markInfo != null}
           title={markInfo?.title ?? ''}
           kindLabel={markInfo?.kindLabel}
-          iconSrc={markInfo?.iconSrc}
+          symbolId={markInfo?.symbolId}
           icon={markInfo?.icon}
           purpose={markInfo?.purpose ?? ''}
           howTo={markInfo?.howTo ?? ''}
@@ -1170,7 +1385,12 @@ function SymbolToolButton({
         active ? 'aib-tool-btn-active' : 'aib-tool-btn-idle'
       )}
     >
-      <MarkIcon src={SYMBOL_ICON_URLS[symbol.id]} size={markIconSize.sidebar} />
+      <MarkIcon
+        symbolId={symbol.id}
+        size={markIconSize.sidebar}
+        sidebar
+        active={active}
+      />
       <span className="min-w-0 flex-1 truncate">{symbol.label}</span>
       <span
         className={cn(
