@@ -1,0 +1,39 @@
+---
+description: Keep the codebase clean — no dead code, duplicates, or careless perf/security debt
+alwaysApply: true
+---
+
+# Clean codebase
+
+Before finishing any change, leave the touched area **cleaner or no worse** than you found it. Prefer fixing issues you introduce or that sit directly in your path; do not drive-by refactor unrelated modules.
+
+## Remove and avoid
+
+- **Dead code**: unused imports, exports, variables, branches, feature flags, leftover files after moves/deletes, unreachable routes.
+- **Duplicates**: copy-paste helpers, parallel types, repeated class strings, twin API clients — extract once to `packages/core` (domain), `apps/api` (persistence/security), or `apps/web` (UI) as appropriate.
+- **Comments / TODOs**: follow `no-code-comments.mdc`; do not paper over mess with banners.
+- **Speculative abstraction**: no unused generics, config knobs, or “for later” wrappers.
+
+## Performance
+
+- Avoid unnecessary re-renders (unstable inline props/effects only when they already matter in this codebase).
+- No N+1 DB work; keep list/query payloads lean (e.g. redact protected map views on public list).
+- MapLibre stays client-only; do not pull it into SSR. Prefer existing polling/SSE patterns over new chatty loops.
+- Do not add heavy deps when a small local helper suffices.
+
+## Security
+
+- Never weaken passphrase gates, rate limits, CORS allowlist, or header-only `X-Passphrase` (no secrets in URLs/query).
+- No logging of passphrases, hashes, or tokens. No committed secrets / `.env` values.
+- Validate at boundaries (Zod/UUID params); reject oversized bodies/headers without expensive work when possible.
+- Treat authz as server-enforced; UI hiding is not access control.
+
+## Structure
+
+- Domain logic in `packages/core` (no React/Nest). Persistence only in `apps/api`.
+- Match Prettier (`prettier-format.mdc`). Run format/typecheck on touched paths before done.
+- If behavior/UX/privacy changed, sync docs/site (`docs-and-site-sync.mdc`).
+
+## Done check
+
+Ask: would a reviewer see leftover dead paths, duplicated logic, a perf footgun, or a security shortcut in this diff? If yes, fix it before declaring done.

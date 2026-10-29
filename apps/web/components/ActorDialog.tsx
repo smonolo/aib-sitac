@@ -46,23 +46,17 @@ export function ActorDialog({ open, onClose, onChange }: Props) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-aib-canvas-inverse/70 p-4"
-      onClick={onClose}
-    >
+    <div className="aib-dialog-backdrop" onClick={onClose}>
       <form
         onSubmit={save}
-        className="flex w-full max-w-sm flex-col gap-5 rounded-aib bg-aib-surface-dark p-5 shadow-lg sm:p-6"
+        className="aib-dialog-panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby="actor-dialog-title"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3">
-          <h2
-            id="actor-dialog-title"
-            className="min-w-0 flex-1 text-[15px] font-semibold text-aib-fg-inverse"
-          >
+          <h2 id="actor-dialog-title" className="aib-dialog-title">
             {c.actorDialogTitle}
           </h2>
           <IconButton aria-label={c.textDialogCancel} onClick={onClose}>
@@ -70,7 +64,7 @@ export function ActorDialog({ open, onClose, onChange }: Props) {
           </IconButton>
         </div>
 
-        <p className="text-[13px] leading-snug text-aib-muted-dark">
+        <p className="text-[13px] leading-snug text-aib-muted dark:text-aib-muted-dark">
           {c.actorDialogHint}
         </p>
 

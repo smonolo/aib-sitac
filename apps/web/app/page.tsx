@@ -7,6 +7,7 @@ import { CircleHelp, Lock, User } from 'lucide-react'
 import { DEFAULT_CENTER, type SitacIncident } from '@aib-sitac/core'
 import { AboutDialog } from '@/components/AboutDialog'
 import { ActorDialog } from '@/components/ActorDialog'
+import { ThemeToggle } from '@/components/ThemeToggle'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -124,8 +125,8 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto bg-aib-canvas-inverse p-4 text-aib-fg-inverse">
-      <div className="flex w-full max-w-md flex-col gap-6 rounded-aib bg-aib-surface-dark p-6 shadow-lg sm:p-8">
+    <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto bg-aib-canvas px-[max(1rem,env(safe-area-inset-left))] pt-[max(1rem,env(safe-area-inset-top))] pr-[max(1rem,env(safe-area-inset-right))] pb-[max(1rem,env(safe-area-inset-bottom))] text-aib-fg dark:bg-aib-canvas-inverse dark:text-aib-fg-inverse">
+      <div className="flex w-full max-w-md flex-col gap-6 rounded-aib bg-aib-surface p-5 shadow-lg sm:p-8 dark:bg-aib-surface-dark">
         <div className="flex flex-col items-center gap-2.5 text-center">
           <div className="flex items-center gap-2.5">
             <Image
@@ -133,20 +134,20 @@ export default function HomePage() {
               alt=""
               width={350}
               height={180}
-              className="h-6 w-auto"
+              className="h-6 w-auto brightness-0 dark:brightness-100"
               priority
             />
-            <span className="text-[26px] font-bold tracking-[-0.4px] text-aib-fg-inverse sm:text-[28px]">
+            <span className="text-[26px] font-bold tracking-[-0.4px] text-aib-fg sm:text-[28px] dark:text-aib-fg-inverse">
               SITAC
             </span>
           </div>
-          <p className="text-[13px] leading-snug text-aib-muted-dark">
+          <p className="text-[13px] leading-snug text-aib-muted dark:text-aib-muted-dark">
             {c.tagline}
           </p>
         </div>
 
         <div
-          className="grid grid-cols-2 gap-1 rounded-aib-sm bg-aib-track-dark p-1"
+          className="grid grid-cols-2 gap-1 rounded-aib-sm bg-aib-track p-1 dark:bg-aib-track-dark"
           role="tablist"
           aria-label={c.brand}
         >
@@ -158,8 +159,8 @@ export default function HomePage() {
             className={cn(
               'min-h-9 rounded-aib-sm px-3 text-[13px] font-medium transition-opacity',
               mode === 'open'
-                ? 'bg-aib-fg-inverse text-aib-fg'
-                : 'text-aib-muted-dark hover:opacity-70'
+                ? 'bg-aib-fg text-aib-fg-inverse dark:bg-aib-fg-inverse dark:text-aib-fg'
+                : 'text-aib-muted hover:opacity-70 dark:text-aib-muted-dark'
             )}
           >
             {c.homeModeOpen}
@@ -172,8 +173,8 @@ export default function HomePage() {
             className={cn(
               'min-h-9 rounded-aib-sm px-3 text-[13px] font-medium transition-opacity',
               mode === 'create'
-                ? 'bg-aib-fg-inverse text-aib-fg'
-                : 'text-aib-muted-dark hover:opacity-70'
+                ? 'bg-aib-fg text-aib-fg-inverse dark:bg-aib-fg-inverse dark:text-aib-fg'
+                : 'text-aib-muted hover:opacity-70 dark:text-aib-muted-dark'
             )}
           >
             {c.homeModeCreate}
@@ -192,19 +193,19 @@ export default function HomePage() {
               placeholder={c.incidentsSearch}
               aria-label={c.incidentsSearch}
             />
-            <div className="max-h-80 overflow-y-auto rounded-aib-sm bg-aib-canvas-inverse">
+            <div className="max-h-80 overflow-y-auto rounded-aib-sm bg-aib-canvas dark:bg-aib-canvas-inverse">
               {listLoading ? (
-                <p className="p-3 text-[13px] text-aib-muted-dark">
+                <p className="p-3 text-[13px] text-aib-muted dark:text-aib-muted-dark">
                   {c.loading}
                 </p>
               ) : listError ? (
                 <p className="p-3 text-[13px] text-aib-brand">{listError}</p>
               ) : incidents.length === 0 ? (
-                <p className="p-3 text-[13px] text-aib-muted-dark">
+                <p className="p-3 text-[13px] text-aib-muted dark:text-aib-muted-dark">
                   {c.incidentsEmpty}
                 </p>
               ) : (
-                <ul className="divide-y divide-aib-border-dark">
+                <ul className="divide-y divide-aib-border dark:divide-aib-border-dark">
                   {incidents.map(incident => (
                     <li key={incident.id}>
                       <button
@@ -213,10 +214,10 @@ export default function HomePage() {
                         className="aib-list-row rounded-none"
                       >
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[15px] font-semibold text-aib-fg-inverse">
+                          <span className="block truncate text-[15px] font-semibold text-aib-fg dark:text-aib-fg-inverse">
                             {incident.title}
                           </span>
-                          <span className="mt-0.5 block truncate text-[12px] leading-snug text-aib-muted-dark">
+                          <span className="mt-0.5 block truncate text-[12px] leading-snug text-aib-muted dark:text-aib-muted-dark">
                             {formatTs(incident.createdAt)}
                             {incident.createdBy
                               ? ` · ${incident.createdBy}`
@@ -225,7 +226,7 @@ export default function HomePage() {
                         </span>
                         {incident.hasPassphrase ? (
                           <Lock
-                            className="size-3.5 shrink-0 text-aib-muted-dark"
+                            className="size-3.5 shrink-0 text-aib-muted dark:text-aib-muted-dark"
                             aria-label={c.incidentsLocked}
                           />
                         ) : null}
@@ -245,7 +246,7 @@ export default function HomePage() {
                 >
                   {c.incidentsPrev}
                 </button>
-                <span className="shrink-0 px-1.5 text-[12px] text-aib-muted-dark tabular-nums">
+                <span className="shrink-0 px-1.5 text-[12px] text-aib-muted tabular-nums dark:text-aib-muted-dark">
                   {formatPageOf(page, totalPages)}
                 </span>
                 <button
@@ -284,7 +285,7 @@ export default function HomePage() {
                 value={passphrase}
                 onChange={e => setPassphrase(e.target.value)}
               />
-              <p className="text-[12px] leading-snug text-aib-muted-dark">
+              <p className="text-[12px] leading-snug text-aib-muted dark:text-aib-muted-dark">
                 {c.passphraseHint}
               </p>
             </div>
@@ -297,22 +298,25 @@ export default function HomePage() {
           </form>
         )}
 
-        <div className="flex items-center justify-between gap-2 border-t border-aib-border-dark pt-4">
+        <div className="flex items-center justify-between gap-2 border-t border-aib-border pt-4 dark:border-aib-border-dark">
+          <div className="flex min-w-0 items-center gap-0.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="gap-1.5 text-aib-muted dark:text-aib-muted-dark"
+              onClick={() => setAboutOpen(true)}
+            >
+              <CircleHelp className="size-3.5 shrink-0" aria-hidden />
+              {c.aboutOpen}
+            </Button>
+            <ThemeToggle />
+          </div>
           <Button
             type="button"
             variant="ghost"
             size="xs"
-            className="gap-1.5 text-aib-muted-dark"
-            onClick={() => setAboutOpen(true)}
-          >
-            <CircleHelp className="size-3.5 shrink-0" aria-hidden />
-            {c.aboutOpen}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            className="max-w-[10rem] gap-1.5 text-aib-muted-dark"
+            className="max-w-[10rem] gap-1.5 text-aib-muted dark:text-aib-muted-dark"
             aria-label={c.actorDialogOpen}
             onClick={() => setActorOpen(true)}
           >

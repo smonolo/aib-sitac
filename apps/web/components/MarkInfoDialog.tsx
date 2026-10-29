@@ -32,12 +32,9 @@ export function MarkInfoDialog({
   if (!open) return null
 
   return (
-    <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-aib-canvas-inverse/70 p-4"
-      onClick={onClose}
-    >
+    <div className="aib-dialog-backdrop" onClick={onClose}>
       <div
-        className="flex w-full max-w-sm flex-col gap-5 rounded-aib bg-aib-surface-dark p-5 shadow-lg sm:p-6"
+        className="aib-dialog-panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby="mark-info-title"
@@ -49,7 +46,7 @@ export function MarkInfoDialog({
               <MarkIcon src={iconSrc} size={markIconSize.dialog} />
             ) : icon ? (
               <span
-                className="flex shrink-0 items-center justify-center text-aib-fg-inverse [&_svg]:size-5"
+                className="flex shrink-0 items-center justify-center text-aib-fg dark:text-aib-fg-inverse [&_svg]:size-5"
                 style={{
                   width: markIconSize.dialog,
                   height: markIconSize.dialog,
@@ -61,12 +58,12 @@ export function MarkInfoDialog({
             <div className="min-w-0 flex-1">
               <h2
                 id="mark-info-title"
-                className="truncate text-[15px] leading-tight font-semibold text-aib-fg-inverse"
+                className="aib-dialog-title truncate leading-tight"
               >
                 {title}
               </h2>
               {kindLabel ? (
-                <p className="text-[11px] leading-tight font-medium tracking-wide text-aib-muted-dark uppercase">
+                <p className="text-[11px] leading-tight font-medium tracking-wide text-aib-muted uppercase dark:text-aib-muted-dark">
                   {kindLabel}
                 </p>
               ) : null}
@@ -79,18 +76,18 @@ export function MarkInfoDialog({
 
         <div className="flex flex-col gap-4">
           <section>
-            <h3 className="text-[13px] leading-snug font-semibold text-aib-fg-inverse">
+            <h3 className="text-[13px] leading-snug font-semibold text-aib-fg dark:text-aib-fg-inverse">
               {c.markInfoPurpose}
             </h3>
-            <p className="text-[13px] leading-snug text-aib-muted-dark">
+            <p className="text-[13px] leading-snug text-aib-muted dark:text-aib-muted-dark">
               {purpose}
             </p>
           </section>
           <section>
-            <h3 className="text-[13px] leading-snug font-semibold text-aib-fg-inverse">
+            <h3 className="text-[13px] leading-snug font-semibold text-aib-fg dark:text-aib-fg-inverse">
               {c.markInfoHow}
             </h3>
-            <p className="text-[13px] leading-snug text-aib-muted-dark">
+            <p className="text-[13px] leading-snug text-aib-muted dark:text-aib-muted-dark">
               {howTo}
             </p>
           </section>

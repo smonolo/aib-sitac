@@ -10,14 +10,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { getIncident, isPassphraseError } from '@/lib/api'
 import { t } from '@/lib/i18n'
-import { readPassphrase, writePassphrase } from '@/lib/storage'
+import { clearPassphrase, readPassphrase, writePassphrase } from '@/lib/storage'
 
 const SitacMap = dynamic(
   () => import('@/components/SitacMap').then(m => m.SitacMap),
   {
     ssr: false,
     loading: () => (
-      <div className="grid min-h-0 flex-1 place-items-center text-[13px] text-aib-muted-dark">
+      <div className="grid min-h-0 flex-1 place-items-center text-[13px] text-aib-muted dark:text-aib-muted-dark">
         …
       </div>
     ),
@@ -71,7 +71,7 @@ export default function IncidentPage() {
 
   if (loading) {
     return (
-      <div className="grid min-h-0 flex-1 place-items-center text-[15px] text-aib-muted-dark">
+      <div className="grid min-h-0 flex-1 place-items-center text-[15px] text-aib-muted dark:text-aib-muted-dark">
         {c.loading}
       </div>
     )
@@ -125,6 +125,13 @@ export default function IncidentPage() {
       passphrase={passphrase}
       onIncidentChange={setIncident}
       onPassphraseChange={setPassphrase}
+      onAccessDenied={() => {
+        clearPassphrase(id)
+        setPassphrase(null)
+        setPassInput('')
+        setIncident(null)
+        setNeedsPass(true)
+      }}
     />
   )
 }

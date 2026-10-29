@@ -1,6 +1,6 @@
 # Terms of use — AIB SITAC
 
-**Last updated:** 27 October 2026
+**Last updated:** 29 October 2026
 
 AIB SITAC is an unofficial volunteer tool for tactical wildfire mapping. It does not replace emergency numbers, official channels, or institutional systems.
 

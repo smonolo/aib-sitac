@@ -25,22 +25,16 @@ export function ExportDialog({
   if (!open) return null
 
   return (
-    <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-aib-canvas-inverse/70 p-4"
-      onClick={busy ? undefined : onClose}
-    >
+    <div className="aib-dialog-backdrop" onClick={busy ? undefined : onClose}>
       <div
-        className="flex w-full max-w-sm flex-col gap-5 rounded-aib bg-aib-surface-dark p-5 shadow-lg sm:p-6"
+        className="aib-dialog-panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby="export-dialog-title"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3">
-          <h2
-            id="export-dialog-title"
-            className="min-w-0 flex-1 text-[15px] font-semibold text-aib-fg-inverse"
-          >
+          <h2 id="export-dialog-title" className="aib-dialog-title">
             {c.exportTitle}
           </h2>
           <IconButton

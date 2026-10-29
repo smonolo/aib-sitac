@@ -18,9 +18,11 @@ import {
   Info,
   Link2,
   Lock,
+  Menu,
   MousePointer2,
   Settings,
   User,
+  X,
 } from 'lucide-react'
 import {
   SYMBOL_CATALOG,
@@ -43,10 +45,16 @@ import { ExportDialog } from '@/components/ExportDialog'
 import { MarkInfoDialog } from '@/components/MarkInfoDialog'
 import { RoomSettingsDialog } from '@/components/RoomSettingsDialog'
 import { TextMarkDialog } from '@/components/TextMarkDialog'
+import { ThemeToggle } from '@/components/ThemeToggle'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
 import { Slider } from '@/components/ui/slider'
-import { appendEvent, eventsStreamUrl, listEvents } from '@/lib/api'
+import {
+  appendEvent,
+  eventsStreamUrl,
+  isPassphraseError,
+  listEvents,
+} from '@/lib/api'
 import {
   drawHintForGeometry,
   formatStepOf,
@@ -86,6 +94,7 @@ type Props = {
   passphrase: string | null
   onIncidentChange?: (incident: SitacIncident) => void
   onPassphraseChange?: (passphrase: string | null) => void
+  onAccessDenied?: () => void
 }
 
 export function SitacMap({
@@ -93,8 +102,11 @@ export function SitacMap({
   passphrase,
   onIncidentChange,
   onPassphraseChange,
+  onAccessDenied,
 }: Props) {
   const c = t()
+  const onAccessDeniedRef = useRef(onAccessDenied)
+  onAccessDeniedRef.current = onAccessDenied
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
   const initialViewRef = useRef({
@@ -123,6 +135,7 @@ export function SitacMap({
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [eventsReady, setEventsReady] = useState(false)
   const [profileActor, setProfileActor] = useState('')
+  const [menuOpen, setMenuOpen] = useState(false)
   const actorWaitersRef = useRef<Array<(name: string | null) => void>>([])
   const urlStepAppliedRef = useRef(false)
 
@@ -180,7 +193,13 @@ export function SitacMap({
     setEventsReady(false)
     urlStepAppliedRef.current = false
     setScrubTs(null)
-    refresh().catch(err => setError(String(err)))
+    refresh().catch(err => {
+      if (isPassphraseError(err)) {
+        onAccessDeniedRef.current?.()
+        return
+      }
+      setError(String(err))
+    })
   }, [refresh])
 
   useEffect(() => {
@@ -194,10 +213,13 @@ export function SitacMap({
   useEffect(() => {
     if (passphrase) {
       const id = window.setInterval(() => {
-        refresh().catch(() => undefined)
+        refresh().catch(err => {
+          if (isPassphraseError(err)) onAccessDeniedRef.current?.()
+        })
       }, 4000)
       return () => window.clearInterval(id)
     }
+    let stopped = false
     const es = new EventSource(eventsStreamUrl(incident.id))
     es.onmessage = msg => {
       try {
@@ -207,8 +229,19 @@ export function SitacMap({
         )
       } catch {}
     }
-    es.onerror = () => {}
-    return () => es.close()
+    es.onerror = () => {
+      if (stopped) return
+      void refresh().catch(err => {
+        if (!isPassphraseError(err)) return
+        stopped = true
+        es.close()
+        onAccessDeniedRef.current?.()
+      })
+    }
+    return () => {
+      stopped = true
+      es.close()
+    }
   }, [incident.id, passphrase, refresh])
 
   useEffect(() => {
@@ -239,7 +272,7 @@ export function SitacMap({
       map = instance
       instance.addControl(
         new maplibregl.NavigationControl({ showCompass: true }),
-        'top-left'
+        'top-right'
       )
       mapRef.current = instance
       setMapReady(false)
@@ -383,13 +416,24 @@ export function SitacMap({
   const selectSelectTool = () => {
     setTool('select')
     cancelDraw()
+    setMenuOpen(false)
   }
 
   const selectSymbolTool = (id: SymbolId) => {
     setTool(id)
     setSelectedId(null)
     cancelDraw()
+    setMenuOpen(false)
   }
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [menuOpen])
 
   const confirmTextMark = () => {
     if (!pendingText || !textDraft.trim()) return
@@ -409,7 +453,7 @@ export function SitacMap({
     const featureIdAt = (point: { x: number; y: number }): string | null => {
       const layers = PICK_LAYERS.filter(id => map.getLayer(id))
       if (layers.length === 0) return null
-      const pad = 10
+      const pad = 16
       const hits = map.queryRenderedFeatures(
         [
           [point.x - pad, point.y - pad],
@@ -612,15 +656,34 @@ export function SitacMap({
     markInfo != null || drawing || (selectMode && selectedId != null)
 
   return (
-    <div className="flex min-h-0 flex-1 gap-3 bg-aib-canvas-inverse p-3 text-aib-fg-inverse">
+    <div className="relative flex min-h-0 flex-1 bg-aib-canvas text-aib-fg md:gap-3 md:p-3 dark:bg-aib-canvas-inverse dark:text-aib-fg-inverse">
+      {menuOpen ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-30 bg-aib-fg/40 md:hidden dark:bg-aib-canvas-inverse/70"
+          aria-label={c.menuClose}
+          onClick={() => setMenuOpen(false)}
+        />
+      ) : null}
+
       <aside
-        className="flex w-64 shrink-0 flex-col overflow-hidden rounded-aib bg-aib-surface-dark shadow-lg sm:w-72"
+        id="sitac-room-menu"
+        className={cn(
+          'fixed inset-y-0 left-0 z-40 flex w-[min(100%,20rem)] max-w-full flex-col overflow-hidden bg-aib-surface shadow-lg transition-transform duration-200 ease-out md:relative md:inset-auto md:z-auto md:w-72 md:max-w-none md:translate-x-0 md:rounded-aib md:shadow-lg dark:bg-aib-surface-dark',
+          menuOpen
+            ? 'translate-x-0'
+            : '-translate-x-full max-md:pointer-events-none md:translate-x-0'
+        )}
+        style={{
+          paddingTop: 'env(safe-area-inset-top)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}
         aria-label={c.roomInfo}
       >
-        <div className="shrink-0 border-b border-aib-border-dark p-3">
+        <div className="flex shrink-0 items-center gap-2 border-b border-aib-border p-3 dark:border-aib-border-dark">
           <Link
             href="/"
-            className="flex items-center gap-2 no-underline transition-opacity hover:opacity-70"
+            className="flex min-w-0 flex-1 items-center gap-2 no-underline transition-opacity hover:opacity-70"
             aria-label={c.homeAria}
           >
             <Image
@@ -628,26 +691,36 @@ export function SitacMap({
               alt=""
               width={350}
               height={180}
-              className="h-4.5 w-auto sm:h-5"
+              className="h-4.5 w-auto brightness-0 sm:h-5 dark:brightness-100"
               priority
             />
-            <span className="text-[18px] font-bold tracking-[-0.4px] text-aib-fg-inverse sm:text-[20px]">
+            <span className="text-[18px] font-bold tracking-[-0.4px] text-aib-fg sm:text-[20px] dark:text-aib-fg-inverse">
               SITAC
             </span>
           </Link>
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            className="shrink-0 text-aib-muted md:hidden dark:text-aib-muted-dark"
+            aria-label={c.menuClose}
+            onClick={() => setMenuOpen(false)}
+          >
+            <X className="size-4" aria-hidden />
+          </Button>
         </div>
 
         <section
-          className="shrink-0 space-y-2 border-b border-aib-border-dark p-3"
+          className="shrink-0 space-y-2 border-b border-aib-border p-3 dark:border-aib-border-dark"
           aria-label={c.roomInfo}
         >
           <div className="flex items-center gap-2">
-            <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold text-aib-fg-inverse">
+            <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold text-aib-fg dark:text-aib-fg-inverse">
               {incident.title}
             </h2>
             {incident.hasPassphrase ? (
               <Lock
-                className="size-3.5 shrink-0 text-aib-muted-dark"
+                className="size-3.5 shrink-0 text-aib-muted dark:text-aib-muted-dark"
                 aria-label={c.roomPassProtected}
               />
             ) : null}
@@ -661,7 +734,7 @@ export function SitacMap({
 
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
           <div
-            className="flex flex-col overflow-hidden rounded-aib-sm bg-aib-canvas-inverse"
+            className="flex flex-col overflow-hidden rounded-aib-sm bg-aib-canvas dark:bg-aib-canvas-inverse"
             aria-label={c.palette}
           >
             <div className="flex flex-col gap-0.5 p-1.5">
@@ -678,7 +751,7 @@ export function SitacMap({
                 <span className="min-w-0 flex-1 truncate">{c.selectTool}</span>
               </button>
             </div>
-            <div className="flex flex-col gap-0.5 border-t border-aib-border-dark p-1.5">
+            <div className="flex flex-col gap-0.5 border-t border-aib-border p-1.5 dark:border-aib-border-dark">
               {ANNOTATION_SYMBOLS.map(s => (
                 <SymbolToolButton
                   key={s.id}
@@ -688,7 +761,7 @@ export function SitacMap({
                 />
               ))}
             </div>
-            <div className="flex flex-col gap-0.5 border-t border-aib-border-dark p-1.5">
+            <div className="flex flex-col gap-0.5 border-t border-aib-border p-1.5 dark:border-aib-border-dark">
               {TACTICAL_SYMBOLS.map(s => (
                 <SymbolToolButton
                   key={s.id}
@@ -702,7 +775,7 @@ export function SitacMap({
         </div>
 
         <div className="flex shrink-0 flex-col">
-          <div className="flex flex-col gap-0.5 border-t border-aib-border-dark p-3">
+          <div className="flex flex-col gap-0.5 border-t border-aib-border p-3 dark:border-aib-border-dark">
             <Button
               variant="quiet"
               size="sm"
@@ -741,11 +814,11 @@ export function SitacMap({
               {c.aboutOpen}
             </Button>
           </div>
-          <div className="border-t border-aib-border-dark p-3">
+          <div className="flex items-center gap-2 border-t border-aib-border p-3 dark:border-aib-border-dark">
             <Button
               variant="quiet"
               size="sm"
-              className="w-full gap-2.5"
+              className="min-w-0 flex-1 gap-2.5"
               aria-label={c.actorDialogOpen}
               onClick={() => setActorOpen(true)}
             >
@@ -754,81 +827,103 @@ export function SitacMap({
                 {profileActor.trim() || c.actorDialogOpen}
               </span>
             </Button>
+            <ThemeToggle />
           </div>
         </div>
       </aside>
 
       <div className="relative min-h-0 min-w-0 flex-1">
-        <div className="relative h-full min-h-0 w-full overflow-hidden rounded-aib border border-aib-border-dark bg-aib-canvas-inverse shadow-lg">
+        <div className="relative h-full min-h-0 w-full overflow-hidden bg-aib-canvas md:rounded-aib md:border md:border-aib-border md:shadow-lg dark:bg-aib-canvas-inverse md:dark:border-aib-border-dark">
           <div
             ref={containerRef}
             className="absolute inset-0 h-full w-full [&_.maplibregl-map]:h-full [&_.maplibregl-map]:w-full"
           />
-          <div className="pointer-events-none absolute inset-x-0 top-3 z-10 flex justify-center px-3">
+
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className={cn(
+              'absolute top-[max(0.75rem,env(safe-area-inset-top))] left-[max(0.75rem,env(safe-area-inset-left))] z-20 size-10 rounded-aib p-0 shadow-lg md:hidden [&_svg]:size-5',
+              menuOpen && 'hidden'
+            )}
+            aria-label={c.menuOpen}
+            aria-expanded={menuOpen}
+            aria-controls="sitac-room-menu"
+            onClick={() => setMenuOpen(true)}
+          >
+            <Menu aria-hidden />
+          </Button>
+
+          <div className="pointer-events-none absolute top-[max(0.75rem,env(safe-area-inset-top))] right-[max(0.75rem,env(safe-area-inset-right))] left-[max(3.5rem,calc(env(safe-area-inset-left)+3.25rem))] z-10 flex justify-center md:left-[max(0.75rem,env(safe-area-inset-left))]">
             <div
-              className="pointer-events-auto flex w-full max-w-xl min-w-0 items-center gap-2 overflow-hidden rounded-aib border border-aib-border-dark bg-aib-surface-dark px-2.5 py-1.5 shadow-lg"
+              className="pointer-events-auto flex w-full max-w-xl min-w-0 flex-col gap-1.5 overflow-hidden rounded-aib border border-aib-border bg-aib-surface px-2.5 py-1.5 shadow-lg sm:flex-row sm:items-center sm:gap-2 dark:border-aib-border-dark dark:bg-aib-surface-dark"
               role="region"
               aria-label={c.timeline}
             >
-              <button
-                type="button"
-                disabled={markEvents.length === 0 || scrubIndex <= 0}
-                aria-label={c.firstStep}
-                onClick={() => goToMarkStep(0)}
-                className="aib-quiet-btn flex h-8 w-6 shrink-0 items-center justify-center !px-0"
-              >
-                <ChevronsLeft className="size-4" aria-hidden />
-              </button>
-              <button
-                type="button"
-                disabled={markEvents.length === 0 || scrubIndex <= 0}
-                aria-label={c.prevStep}
-                onClick={() => goToMarkStep(scrubIndex - 1)}
-                className="aib-quiet-btn flex h-8 w-6 shrink-0 items-center justify-center !px-0"
-              >
-                <ChevronLeft className="size-4" aria-hidden />
-              </button>
-              <Slider
-                className="w-48 shrink-0"
-                min={0}
-                max={Math.max(markEvents.length - 1, 1)}
-                value={[scrubIndex]}
-                disabled={markEvents.length <= 1}
-                onValueChange={values => {
-                  const list = Array.isArray(values) ? values : [values]
-                  goToMarkStep(Number(list[0] ?? 0))
-                }}
-              />
-              <button
-                type="button"
-                disabled={
-                  markEvents.length === 0 || scrubIndex >= markEvents.length - 1
-                }
-                aria-label={c.nextStep}
-                onClick={() => goToMarkStep(scrubIndex + 1)}
-                className="aib-quiet-btn flex h-8 w-6 shrink-0 items-center justify-center !px-0"
-              >
-                <ChevronRight className="size-4" aria-hidden />
-              </button>
-              <button
-                type="button"
-                disabled={
-                  markEvents.length === 0 || scrubIndex >= markEvents.length - 1
-                }
-                aria-label={c.lastStep}
-                onClick={() => goToMarkStep(markEvents.length - 1)}
-                className="aib-quiet-btn flex h-8 w-6 shrink-0 items-center justify-center !px-0"
-              >
-                <ChevronsRight className="size-4" aria-hidden />
-              </button>
-              <p className="w-10 shrink-0 text-right text-[12px] text-aib-muted-dark tabular-nums">
-                {formatStepOf(
-                  markEvents.length === 0 ? 0 : scrubIndex + 1,
-                  markEvents.length
-                )}
-              </p>
+              <div className="flex min-w-0 items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={markEvents.length === 0 || scrubIndex <= 0}
+                  aria-label={c.firstStep}
+                  onClick={() => goToMarkStep(0)}
+                  className="aib-quiet-btn flex h-8 w-6 shrink-0 items-center justify-center !px-0"
+                >
+                  <ChevronsLeft className="size-4" aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  disabled={markEvents.length === 0 || scrubIndex <= 0}
+                  aria-label={c.prevStep}
+                  onClick={() => goToMarkStep(scrubIndex - 1)}
+                  className="aib-quiet-btn flex h-8 w-6 shrink-0 items-center justify-center !px-0"
+                >
+                  <ChevronLeft className="size-4" aria-hidden />
+                </button>
+                <Slider
+                  className="min-w-0 flex-1 sm:w-40 sm:flex-none md:w-48"
+                  min={0}
+                  max={Math.max(markEvents.length - 1, 1)}
+                  value={[scrubIndex]}
+                  disabled={markEvents.length <= 1}
+                  onValueChange={values => {
+                    const list = Array.isArray(values) ? values : [values]
+                    goToMarkStep(Number(list[0] ?? 0))
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={
+                    markEvents.length === 0 ||
+                    scrubIndex >= markEvents.length - 1
+                  }
+                  aria-label={c.nextStep}
+                  onClick={() => goToMarkStep(scrubIndex + 1)}
+                  className="aib-quiet-btn flex h-8 w-6 shrink-0 items-center justify-center !px-0"
+                >
+                  <ChevronRight className="size-4" aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  disabled={
+                    markEvents.length === 0 ||
+                    scrubIndex >= markEvents.length - 1
+                  }
+                  aria-label={c.lastStep}
+                  onClick={() => goToMarkStep(markEvents.length - 1)}
+                  className="aib-quiet-btn flex h-8 w-6 shrink-0 items-center justify-center !px-0"
+                >
+                  <ChevronsRight className="size-4" aria-hidden />
+                </button>
+                <p className="w-10 shrink-0 text-right text-[12px] text-aib-muted tabular-nums dark:text-aib-muted-dark">
+                  {formatStepOf(
+                    markEvents.length === 0 ? 0 : scrubIndex + 1,
+                    markEvents.length
+                  )}
+                </p>
+              </div>
               <div
-                className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden border-l border-aib-border-dark pl-2.5"
+                className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden border-t border-aib-border pt-1.5 sm:border-t-0 sm:border-l sm:pt-0 sm:pl-2.5 dark:border-aib-border-dark"
                 role="status"
               >
                 {currentMarkSummary ? (
@@ -840,7 +935,7 @@ export function SitacMap({
                       />
                     ) : (
                       <span
-                        className="shrink-0 rounded-aib-sm bg-aib-border-dark"
+                        className="shrink-0 rounded-aib-sm bg-aib-border dark:bg-aib-border-dark"
                         style={{
                           width: markIconSize.timeline,
                           height: markIconSize.timeline,
@@ -861,7 +956,7 @@ export function SitacMap({
                     />
                   </>
                 ) : (
-                  <span className="min-w-0 flex-1 truncate text-[12px] text-aib-muted-dark">
+                  <span className="min-w-0 flex-1 truncate text-[12px] text-aib-muted dark:text-aib-muted-dark">
                     {c.noEvents}
                   </span>
                 )}
@@ -870,9 +965,14 @@ export function SitacMap({
           </div>
 
           {showMarkControls ? (
-            <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center px-3">
+            <div
+              className="pointer-events-none absolute inset-x-0 z-10 flex justify-center px-3"
+              style={{
+                bottom: 'max(1rem, env(safe-area-inset-bottom))',
+              }}
+            >
               <div
-                className="pointer-events-auto flex max-w-full items-center gap-1.5 rounded-aib border border-aib-border-dark bg-aib-surface-dark px-2.5 py-1.5 shadow-lg"
+                className="pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-1.5 rounded-aib border border-aib-border bg-aib-surface px-2.5 py-1.5 shadow-lg dark:border-aib-border-dark dark:bg-aib-surface-dark"
                 role="region"
                 aria-label={c.markControls}
               >
@@ -885,7 +985,7 @@ export function SitacMap({
                       />
                     ) : markInfo.icon ? (
                       <span
-                        className="flex shrink-0 items-center justify-center text-aib-fg-inverse [&_svg]:size-[18px]"
+                        className="flex shrink-0 items-center justify-center text-aib-fg dark:text-aib-fg-inverse [&_svg]:size-[18px]"
                         style={{
                           width: markIconSize.control,
                           height: markIconSize.control,
@@ -894,7 +994,7 @@ export function SitacMap({
                         {markInfo.icon}
                       </span>
                     ) : null}
-                    <span className="max-w-[9rem] truncate text-[13px] font-semibold text-aib-fg-inverse sm:max-w-[12rem]">
+                    <span className="max-w-[9rem] truncate text-[13px] font-semibold text-aib-fg sm:max-w-[12rem] dark:text-aib-fg-inverse">
                       {markInfo.title}
                     </span>
                     <IconButton
@@ -1037,13 +1137,13 @@ function TimelineMarkText({ label, meta }: { label: string; meta: string }) {
     <span className="min-w-0 flex-1 overflow-hidden leading-tight" title={tip}>
       <span
         ref={labelRef}
-        className="block truncate text-[12px] font-semibold text-aib-fg-inverse"
+        className="block truncate text-[12px] font-semibold text-aib-fg dark:text-aib-fg-inverse"
       >
         {label}
       </span>
       <span
         ref={metaRef}
-        className="block truncate text-[11px] text-aib-muted-dark"
+        className="block truncate text-[11px] text-aib-muted dark:text-aib-muted-dark"
       >
         {meta}
       </span>
@@ -1075,7 +1175,9 @@ function SymbolToolButton({
       <span
         className={cn(
           'shrink-0 text-[11px] font-medium tracking-wide uppercase opacity-70',
-          active ? 'text-aib-muted' : 'text-aib-muted-dark'
+          active
+            ? 'text-aib-muted-dark dark:text-aib-muted'
+            : 'text-aib-muted dark:text-aib-muted-dark'
         )}
       >
         {geometryKindLabel(symbol.geometry)}

@@ -7,7 +7,8 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-aib-surface text-aib-fg hover:opacity-70',
+        default:
+          'bg-aib-fg text-aib-fg-inverse hover:opacity-70 dark:bg-aib-surface dark:text-aib-fg',
         secondary:
           'bg-aib-surface-muted text-aib-fg hover:opacity-70 dark:bg-aib-surface-muted-dark dark:text-aib-fg-inverse',
         ghost:

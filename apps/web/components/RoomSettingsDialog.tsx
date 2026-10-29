@@ -118,22 +118,16 @@ export function RoomSettingsDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-aib-canvas-inverse/70 p-4"
-      onClick={onClose}
-    >
+    <div className="aib-dialog-backdrop" onClick={onClose}>
       <div
-        className="flex w-full max-w-sm flex-col gap-5 rounded-aib bg-aib-surface-dark p-5 shadow-lg sm:p-6"
+        className="aib-dialog-panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby="room-settings-title"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3">
-          <h2
-            id="room-settings-title"
-            className="min-w-0 flex-1 text-[15px] font-semibold text-aib-fg-inverse"
-          >
+          <h2 id="room-settings-title" className="aib-dialog-title">
             {c.roomSettings}
           </h2>
           <IconButton aria-label={c.textDialogCancel} onClick={onClose}>
@@ -162,9 +156,9 @@ export function RoomSettingsDialog({
           </Button>
         </div>
 
-        <div className="flex flex-col gap-2 border-t border-aib-border-dark pt-4">
+        <div className="flex flex-col gap-2 border-t border-aib-border pt-4 dark:border-aib-border-dark">
           <Label htmlFor="room-pass">{c.roomPassLabel}</Label>
-          <p className="text-[12px] leading-snug text-aib-muted-dark">
+          <p className="text-[12px] leading-snug text-aib-muted dark:text-aib-muted-dark">
             {incident.hasPassphrase ? c.roomPassProtected : c.roomPassOpenHint}
           </p>
           <Input
@@ -200,7 +194,9 @@ export function RoomSettingsDialog({
         </div>
 
         {saved ? (
-          <p className="text-[13px] text-aib-muted-dark">{c.roomSaved}</p>
+          <p className="text-[13px] text-aib-muted dark:text-aib-muted-dark">
+            {c.roomSaved}
+          </p>
         ) : null}
         {error ? (
           <p className="text-[13px] text-aib-brand">

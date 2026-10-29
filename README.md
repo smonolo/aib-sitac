@@ -16,10 +16,10 @@ App: [aib-sitac.smnl.dev](https://aib-sitac.smnl.dev) · Marketing: [smnl.dev/ai
 - Curated symbol palette with tactical-style icons (hotspot, active front, burned area, water, lookout, posto di comando, vehicle, squad, road closed, wind, note) — unofficial, not institutional symbology
 - **Cursore** mode to select marks; draw **Freccia** / **Forma** / **Testo** (plus tactical symbols); soft-delete via tombstone events
 - **Append-only event log** in PostgreSQL → every mark add/remove is an automatic timeline step (scrubber / ← → / `?step=N`), with the local profile name recorded as `actorLabel`; **Copia link** shares the current step when scrubbing
-- Home + map: no site navbar/footer. **Home** = centered card with **Cerca** / **Crea**, About + profile. **Map** left = logo + intervento info + cursore/symbols + room actions + About + profile; **top-center floating timeline**, **bottom-center floating control** = short label + info modal / finish / cancel / delete. Privacy/Termini keep navbar + footer
-- **Dark mode only** (v1 UI)
+- Home + map: no site navbar/footer; works on phone and desktop. **Home** = centered card with **Cerca** / **Crea**, About + theme + profile. **Map** sidebar (drawer on mobile) = logo + intervento info + cursore/symbols + room actions + About + profile/theme; floating timeline + mark controls. Guida / Privacy / Termini open on the marketing site (`smnl.dev/aib-sitac/…`); old `/privacy` and `/terms` app paths redirect there
+- **Light and dark** UI (follows system by default; toggle on home and in the map sidebar)
 - Export **GeoJSON** and map **PNG**
-- Realtime updates via SSE (password-protected rooms poll)
+- Realtime updates via SSE (password-protected rooms poll; SSE drops if a password is set/changed)
 - Website first (`apps/web`); Nest API (`apps/api`); shared domain (`packages/core`); mobile slot reserved (`apps/mobile`)
 
 ## Stack

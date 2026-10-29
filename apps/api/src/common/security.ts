@@ -79,6 +79,21 @@ async function withScryptSlot<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
+export const PASSPHRASE_MIN_LENGTH = 4
+export const PASSPHRASE_MAX_LENGTH = 200
+
+export function normalizePassphraseHeader(
+  value: string | string[] | undefined
+): string | undefined {
+  if (value == null) return undefined
+  const raw = Array.isArray(value) ? value[0] : value
+  if (typeof raw !== 'string' || raw.length === 0) return undefined
+  if (raw.length > PASSPHRASE_MAX_LENGTH) {
+    return 'x'.repeat(PASSPHRASE_MAX_LENGTH + 1)
+  }
+  return raw
+}
+
 export async function hashPassphrase(passphrase: string): Promise<string> {
   return withScryptSlot(async () => {
     const salt = randomBytes(16).toString('hex')
@@ -91,6 +106,9 @@ export async function verifyPassphrase(
   passphrase: string,
   stored: string
 ): Promise<boolean> {
+  if (passphrase.length === 0 || passphrase.length > PASSPHRASE_MAX_LENGTH) {
+    return false
+  }
   const parts = stored.split('$')
   if (parts.length !== 3 || parts[0] !== 'scrypt') return false
   const [, salt, expected] = parts

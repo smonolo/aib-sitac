@@ -22,20 +22,8 @@ import {
   tooManyRequests,
   verifyPassphrase,
 } from '../common/security'
-
-function toIncident(row: IncidentRow): SitacIncident {
-  return {
-    id: row.id,
-    title: row.title,
-    createdAt: row.createdAt.toISOString(),
-    createdBy: row.createdBy?.trim() || null,
-    centerLng: row.centerLng,
-    centerLat: row.centerLat,
-    zoom: row.zoom,
-    hasPassphrase: Boolean(row.passphraseHash),
-    schemaVersion: row.schemaVersion,
-  }
-}
+import { incidentAccessChangedBus } from '../events/bus'
+import { incidentFromRow } from './incident-dto'
 
 function isLikelyDbInputError(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false
@@ -72,7 +60,7 @@ export class IncidentsService {
       .returning()
 
     if (!row) throw new Error('Failed to create incident')
-    return toIncident(row)
+    return incidentFromRow(row)
   }
 
   async list(query: ListIncidentsQuery = {}): Promise<ListIncidentsResult> {
@@ -117,7 +105,7 @@ export class IncidentsService {
       .offset((safePage - 1) * pageSize)
 
     return {
-      items: rows.map(toIncident),
+      items: rows.map(row => incidentFromRow(row, { redactMapView: true })),
       page: safePage,
       pageSize,
       total,
@@ -148,7 +136,7 @@ export class IncidentsService {
     passphrase: string | undefined,
     ip?: string
   ): Promise<SitacIncident> {
-    return toIncident(await this.assertAccess(id, passphrase, ip))
+    return incidentFromRow(await this.assertAccess(id, passphrase, ip))
   }
 
   async assertAccess(
@@ -192,7 +180,7 @@ export class IncidentsService {
     },
     ip?: string
   ): Promise<SitacIncident> {
-    await this.assertAccess(id, passphrase, ip)
+    const current = await this.assertAccess(id, passphrase, ip)
 
     const patch: Partial<Pick<IncidentRow, 'title' | 'passphraseHash'>> = {}
 
@@ -213,7 +201,7 @@ export class IncidentsService {
     }
 
     if (Object.keys(patch).length === 0) {
-      return toIncident(await this.getRaw(id))
+      return incidentFromRow(current)
     }
 
     const [row] = await getDb()
@@ -223,7 +211,12 @@ export class IncidentsService {
       .returning()
 
     if (!row) throw new NotFoundException('Incident not found')
-    return toIncident(row)
+
+    if (current.passphraseHash !== row.passphraseHash) {
+      incidentAccessChangedBus.next({ incidentId: id })
+    }
+
+    return incidentFromRow(row)
   }
 
   async delete(
@@ -233,5 +226,6 @@ export class IncidentsService {
   ): Promise<void> {
     await this.assertAccess(id, passphrase, ip)
     await getDb().delete(incidents).where(eq(incidents.id, id))
+    incidentAccessChangedBus.next({ incidentId: id })
   }
 }

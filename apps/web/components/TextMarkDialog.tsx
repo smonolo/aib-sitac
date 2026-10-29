@@ -34,13 +34,10 @@ export function TextMarkDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-aib-canvas-inverse/70 p-4"
-      onClick={onCancel}
-    >
+    <div className="aib-dialog-backdrop" onClick={onCancel}>
       <form
         onSubmit={submit}
-        className="flex w-full max-w-sm flex-col gap-5 rounded-aib bg-aib-surface-dark p-5 shadow-lg sm:p-6"
+        className="aib-dialog-panel"
         role="dialog"
         aria-modal="true"
         aria-labelledby="text-mark-title"
@@ -50,7 +47,7 @@ export function TextMarkDialog({
           <Label
             id="text-mark-title"
             htmlFor="text-mark-input"
-            className="min-w-0 flex-1 text-[15px] font-semibold text-aib-fg-inverse"
+            className="aib-dialog-title"
           >
             {c.textDialogTitle}
           </Label>

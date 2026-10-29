@@ -15,9 +15,23 @@ import {
 } from '@nestjs/common'
 import type { Request } from 'express'
 import { z } from 'zod'
-import { RateLimiter, clientIp, tooManyRequests } from '../common/security'
+import {
+  PASSPHRASE_MAX_LENGTH,
+  PASSPHRASE_MIN_LENGTH,
+  RateLimiter,
+  clientIp,
+  normalizePassphraseHeader,
+  tooManyRequests,
+} from '../common/security'
 import { parseUuidParam } from '../common/validation'
 import { IncidentsService } from './incidents.service'
+
+const passphraseField = z
+  .string()
+  .min(PASSPHRASE_MIN_LENGTH)
+  .max(PASSPHRASE_MAX_LENGTH)
+  .optional()
+  .nullable()
 
 const createSchema = z
   .object({
@@ -25,7 +39,7 @@ const createSchema = z
     centerLng: z.number().finite().min(-180).max(180).optional(),
     centerLat: z.number().finite().min(-90).max(90).optional(),
     zoom: z.number().finite().min(1).max(19).optional(),
-    passphrase: z.string().min(4).max(200).optional().nullable(),
+    passphrase: passphraseField,
     createdBy: z.string().min(1).max(80).optional().nullable(),
   })
   .strict()
@@ -33,7 +47,7 @@ const createSchema = z
 const updateSchema = z
   .object({
     title: z.string().min(1).max(200).optional(),
-    passphrase: z.string().min(4).max(200).optional().nullable(),
+    passphrase: passphraseField,
   })
   .strict()
   .refine(data => data.title !== undefined || data.passphrase !== undefined, {
@@ -91,19 +105,23 @@ export class IncidentsController {
   @Get(':id')
   async get(
     @Param('id') id: string,
-    @Headers('x-passphrase') passphrase: string | undefined,
+    @Headers('x-passphrase') passphraseHeader: string | string[] | undefined,
     @Req() req: Request
   ) {
     const ip = clientIp(req)
     if (!getLimiter.check(ip)) throw tooManyRequests()
-    return this.incidents.getAuthorized(parseUuidParam(id), passphrase, ip)
+    return this.incidents.getAuthorized(
+      parseUuidParam(id),
+      normalizePassphraseHeader(passphraseHeader),
+      ip
+    )
   }
 
   @Patch(':id')
   async update(
     @Param('id') id: string,
     @Body() body: unknown,
-    @Headers('x-passphrase') passphrase: string | undefined,
+    @Headers('x-passphrase') passphraseHeader: string | string[] | undefined,
     @Req() req: Request
   ) {
     const ip = clientIp(req)
@@ -114,7 +132,7 @@ export class IncidentsController {
     }
     return this.incidents.update(
       parseUuidParam(id),
-      passphrase,
+      normalizePassphraseHeader(passphraseHeader),
       parsed.data,
       ip
     )
@@ -123,12 +141,16 @@ export class IncidentsController {
   @Delete(':id')
   async remove(
     @Param('id') id: string,
-    @Headers('x-passphrase') passphrase: string | undefined,
+    @Headers('x-passphrase') passphraseHeader: string | string[] | undefined,
     @Req() req: Request
   ) {
     const ip = clientIp(req)
     if (!mutateLimiter.check(ip)) throw tooManyRequests()
-    await this.incidents.delete(parseUuidParam(id), passphrase, ip)
+    await this.incidents.delete(
+      parseUuidParam(id),
+      normalizePassphraseHeader(passphraseHeader),
+      ip
+    )
     return { ok: true }
   }
 }

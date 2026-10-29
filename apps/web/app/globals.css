@@ -67,17 +67,39 @@
   --radius-4xl: var(--radius-aib);
 }
 
-:root,
-.dark {
+:root {
   --radius: 1rem;
+  --background: #f5f5f5;
+  --foreground: #171717;
+  --card: #ffffff;
+  --card-foreground: #171717;
+  --popover: #ffffff;
+  --popover-foreground: #171717;
+  --primary: #171717;
+  --primary-foreground: #fafafa;
+  --secondary: #e5e5e5;
+  --secondary-foreground: #171717;
+  --muted: #e5e5e5;
+  --muted-foreground: #525252;
+  --accent: #e5e5e5;
+  --accent-foreground: #171717;
+  --destructive: #af2525;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #a3a3a3;
+  --brand: #af2525;
+  color-scheme: light;
+}
+
+.dark {
   --background: #111111;
   --foreground: #fafafa;
   --card: #1a1a1a;
   --card-foreground: #fafafa;
   --popover: #1a1a1a;
   --popover-foreground: #fafafa;
-  --primary: #262626;
-  --primary-foreground: #fafafa;
+  --primary: #fafafa;
+  --primary-foreground: #171717;
   --secondary: #262626;
   --secondary-foreground: #fafafa;
   --muted: #262626;
@@ -89,6 +111,7 @@
   --input: #2a2a2a;
   --ring: #525252;
   --brand: #af2525;
+  color-scheme: dark;
 }
 
 @layer base {
@@ -121,11 +144,11 @@
 
 @layer components {
   .aib-link {
-    @apply text-aib-fg-inverse underline underline-offset-2 transition-opacity hover:opacity-70;
+    @apply text-aib-fg underline underline-offset-2 transition-opacity hover:opacity-70 dark:text-aib-fg-inverse;
   }
 
   .aib-quiet-btn {
-    @apply min-h-9 cursor-pointer rounded-aib-sm px-2.5 text-[13px] font-medium text-aib-track-idle-dark transition-opacity hover:opacity-70 disabled:pointer-events-none disabled:opacity-40;
+    @apply min-h-9 cursor-pointer rounded-aib-sm px-2.5 text-[13px] font-medium text-aib-track-idle transition-opacity hover:opacity-70 disabled:pointer-events-none disabled:opacity-40 dark:text-aib-track-idle-dark;
   }
 
   .aib-tool-btn {
@@ -133,19 +156,32 @@
   }
 
   .aib-tool-btn-idle {
-    @apply text-aib-track-idle-dark hover:opacity-70;
+    @apply text-aib-track-idle hover:opacity-70 dark:text-aib-track-idle-dark;
   }
 
   .aib-tool-btn-active {
-    @apply bg-aib-fg-inverse text-aib-fg;
+    @apply bg-aib-fg text-aib-fg-inverse dark:bg-aib-fg-inverse dark:text-aib-fg;
   }
 
   .aib-list {
-    @apply divide-y divide-aib-border-dark overflow-hidden rounded-aib bg-aib-surface-dark;
+    @apply divide-y divide-aib-border overflow-hidden rounded-aib bg-aib-surface dark:divide-aib-border-dark dark:bg-aib-surface-dark;
   }
 
   .aib-list-row {
     @apply flex min-h-[52px] w-full cursor-pointer items-center gap-3 px-3.5 py-3 text-left transition-opacity hover:opacity-70;
+  }
+
+  .aib-dialog-backdrop {
+    @apply fixed inset-0 z-40 flex items-end justify-center bg-aib-fg/40 p-3 sm:items-center sm:p-4 dark:bg-aib-canvas-inverse/70;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .aib-dialog-panel {
+    @apply flex max-h-[min(90dvh,40rem)] w-full max-w-sm flex-col gap-5 overflow-y-auto rounded-aib bg-aib-surface p-5 text-aib-fg shadow-lg sm:p-6 dark:bg-aib-surface-dark dark:text-aib-fg-inverse;
+  }
+
+  .aib-dialog-title {
+    @apply min-w-0 flex-1 text-[15px] font-semibold text-aib-fg dark:text-aib-fg-inverse;
   }
 }
 
@@ -161,4 +197,20 @@
 
 .maplibregl-ctrl-attrib a {
   color: inherit;
+}
+
+.maplibregl-ctrl-top-right {
+  top: max(0.5rem, env(safe-area-inset-top));
+  right: max(0.5rem, env(safe-area-inset-right));
+}
+
+.maplibregl-ctrl-bottom-right {
+  bottom: max(0.5rem, env(safe-area-inset-bottom));
+  right: max(0.5rem, env(safe-area-inset-right));
+}
+
+@media (max-width: 767px) {
+  .maplibregl-ctrl-top-right {
+    top: max(4.25rem, calc(env(safe-area-inset-top) + 3.5rem));
+  }
 }
