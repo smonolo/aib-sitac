@@ -102,6 +102,12 @@ export class IncidentsController {
     return this.incidents.list(parsed.data)
   }
 
+  @Get(':id/gate')
+  async gate(@Param('id') id: string, @Req() req: Request) {
+    if (!getLimiter.check(clientIp(req))) throw tooManyRequests()
+    return this.incidents.gate(parseUuidParam(id))
+  }
+
   @Get(':id')
   async get(
     @Param('id') id: string,

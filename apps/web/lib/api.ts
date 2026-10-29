@@ -91,6 +91,16 @@ export async function listIncidents(
   return parseJson(res)
 }
 
+export async function getIncidentGate(
+  id: string
+): Promise<{ hasPassphrase: boolean }> {
+  const res = await fetch(`${apiBase()}/api/incidents/${id}/gate`, {
+    ...fetchDefaults,
+    cache: 'no-store',
+  })
+  return parseJson(res)
+}
+
 export async function getIncident(
   id: string,
   passphrase?: string | null

@@ -1,14 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useParams } from 'next/navigation'
-import type { SitacIncident } from '@aib-sitac/core'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { getIncident, isPassphraseError } from '@/lib/api'
+import { DEFAULT_CENTER, type SitacIncident } from '@aib-sitac/core'
+import { getIncident, getIncidentGate, isPassphraseError } from '@/lib/api'
 import { t } from '@/lib/i18n'
 import { clearPassphrase, readPassphrase, writePassphrase } from '@/lib/storage'
 
@@ -24,19 +20,39 @@ const SitacMap = dynamic(
   }
 )
 
+function lockedStub(id: string): SitacIncident {
+  return {
+    id,
+    title: t().roomLockedTitle,
+    createdAt: new Date(0).toISOString(),
+    createdBy: null,
+    centerLng: DEFAULT_CENTER.lng,
+    centerLat: DEFAULT_CENTER.lat,
+    zoom: DEFAULT_CENTER.zoom,
+    hasPassphrase: true,
+    schemaVersion: 1,
+  }
+}
+
 export default function IncidentPage() {
   const params = useParams<{ id: string }>()
   const id = params.id
+  const c = t()
   const [passphrase, setPassphrase] = useState<string | null>(null)
-  const [passInput, setPassInput] = useState('')
   const [incident, setIncident] = useState<SitacIncident | null>(null)
-  const [needsPass, setNeedsPass] = useState(false)
+  const [locked, setLocked] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [unlockBusy, setUnlockBusy] = useState(false)
+  const [unlockError, setUnlockError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const stored = readPassphrase(id)
-    if (stored) setPassphrase(stored)
+  const enterLocked = useCallback(() => {
+    clearPassphrase(id)
+    setPassphrase(null)
+    setIncident(lockedStub(id))
+    setLocked(true)
+    setUnlockError(null)
+    setError(null)
   }, [id])
 
   useEffect(() => {
@@ -44,19 +60,41 @@ export default function IncidentPage() {
     async function load() {
       setLoading(true)
       setError(null)
+      setUnlockError(null)
       try {
-        const data = await getIncident(id, passphrase)
+        const gate = await getIncidentGate(id)
+        if (cancelled) return
+
+        if (gate.hasPassphrase) {
+          const stored = readPassphrase(id)
+          if (!stored) {
+            enterLocked()
+            return
+          }
+          try {
+            const data = await getIncident(id, stored)
+            if (cancelled) return
+            setIncident(data)
+            setPassphrase(stored)
+            setLocked(false)
+          } catch (err) {
+            if (cancelled) return
+            if (isPassphraseError(err)) enterLocked()
+            else setError(String(err))
+          }
+          return
+        }
+
+        const data = await getIncident(id, null)
         if (cancelled) return
         setIncident(data)
-        setNeedsPass(false)
+        setPassphrase(null)
+        setLocked(false)
       } catch (err) {
         if (cancelled) return
-        if (isPassphraseError(err)) {
-          setNeedsPass(true)
-          setIncident(null)
-        } else {
-          setError(String(err))
-        }
+        setIncident(null)
+        setLocked(false)
+        setError(String(err))
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -65,47 +103,33 @@ export default function IncidentPage() {
     return () => {
       cancelled = true
     }
-  }, [id, passphrase])
+  }, [enterLocked, id])
 
-  const c = t()
+  const handleUnlock = async (pass: string) => {
+    setUnlockBusy(true)
+    setUnlockError(null)
+    try {
+      const data = await getIncident(id, pass)
+      writePassphrase(id, pass)
+      setPassphrase(pass)
+      setIncident(data)
+      setLocked(false)
+    } catch (err) {
+      if (isPassphraseError(err)) {
+        setUnlockError(c.passphraseWrong)
+      } else {
+        setUnlockError(String(err))
+      }
+    } finally {
+      setUnlockBusy(false)
+    }
+  }
 
   if (loading) {
     return (
       <div className="grid min-h-0 flex-1 place-items-center text-[15px] text-aib-muted dark:text-aib-muted-dark">
         {c.loading}
       </div>
-    )
-  }
-
-  if (needsPass && !incident) {
-    return (
-      <main className="mx-auto flex min-h-0 w-full max-w-sm flex-1 flex-col justify-center gap-4 px-4 sm:px-5">
-        <Card>
-          <CardHeader>
-            <CardTitle>{c.passphraseRequired}</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="unlock-pass">{c.passphraseLabel}</Label>
-              <Input
-                id="unlock-pass"
-                type="password"
-                value={passInput}
-                onChange={e => setPassInput(e.target.value)}
-              />
-            </div>
-            <Button
-              className="w-full"
-              onClick={() => {
-                writePassphrase(id, passInput)
-                setPassphrase(passInput)
-              }}
-            >
-              {c.unlock}
-            </Button>
-          </CardContent>
-        </Card>
-      </main>
     )
   }
 
@@ -123,15 +147,13 @@ export default function IncidentPage() {
     <SitacMap
       incident={incident}
       passphrase={passphrase}
+      locked={locked}
+      unlockBusy={unlockBusy}
+      unlockError={unlockError}
+      onUnlock={pass => void handleUnlock(pass)}
       onIncidentChange={setIncident}
       onPassphraseChange={setPassphrase}
-      onAccessDenied={() => {
-        clearPassphrase(id)
-        setPassphrase(null)
-        setPassInput('')
-        setIncident(null)
-        setNeedsPass(true)
-      }}
+      onAccessDenied={enterLocked}
     />
   )
 }

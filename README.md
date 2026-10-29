@@ -12,7 +12,7 @@ App: [aib-sitac.smnl.dev](https://aib-sitac.smnl.dev) · Marketing: [smnl.dev/ai
 
 ## Features (v1)
 
-- Create an **intervento** room (optional password); open rooms from the home card (**Cerca** list with title search + pagination, or **Crea**); rename / set or remove password from the map sidebar; share the link
+- Create an **intervento** room (optional password); open rooms from the home card (**Cerca** list with title search + pagination, or **Crea**); protected rooms open the map shell with an unclosable password modal (no room data until unlock); rename / set or remove password from the map sidebar; share the link
 - Curated symbol palette with Lucide icons (hotspot, active front, burned area, water, lookout, posto di comando, vehicle, squad, road closed, wind, note) — unofficial, not institutional symbology
 - **Cursore** mode to select marks; **Sposta** to drag-reposition then **Termina** (live only); draw **Freccia** / **Forma** / **Testo** (plus tactical symbols); soft-delete via tombstone events
 - **Append-only event log** in PostgreSQL → every mark upsert/delete is an automatic timeline step (scrubber / ← → / `?step=N`), with the local profile name recorded as `actorLabel`; **Copia link** shares the current step when scrubbing

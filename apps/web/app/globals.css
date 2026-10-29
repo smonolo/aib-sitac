@@ -152,7 +152,7 @@
   }
 
   .aib-tool-btn {
-    @apply flex min-h-9 cursor-pointer items-center gap-2 rounded-aib-sm px-2.5 text-left text-[13px] font-medium transition-opacity;
+    @apply flex min-h-9 cursor-pointer items-center gap-2 rounded-aib-sm px-2.5 text-left text-[13px] font-medium transition-opacity disabled:pointer-events-none disabled:opacity-40;
   }
 
   .aib-tool-btn-idle {

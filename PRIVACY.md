@@ -34,7 +34,7 @@ Hosted policy URL: [smnl.dev/aib-sitac/privacy](https://smnl.dev/aib-sitac/priva
 ## Access & room passwords
 
 - Open rooms (no password): anyone with the link can view and edit; live updates use Server-Sent Events. If a password is added later, open SSE clients are disconnected and must unlock again.
-- Protected rooms: every read/write (incident get, events list/append, SSE connect) requires the password via `X-Passphrase` only (never in the URL). The API stores a salted scrypt hash, not the password itself. Wrong-password attempts are rate-limited. Minimum length is 4 characters when set. Changing or removing the password disconnects live listeners for that room.
+- Protected rooms: the UI first calls a public gate (`hasPassphrase` only, same flag as the home list), then opens the map shell with an unclosable password dialog and makes **no** incident/event/SSE requests until unlock succeeds. Every read/write (incident get, events list/append, SSE connect) requires the password via `X-Passphrase` only (never in the URL). The API stores a salted scrypt hash, not the password itself. Wrong-password attempts are rate-limited. Minimum length is 4 characters when set. Changing or removing the password disconnects live listeners for that room.
 - After unlock, the password stays in `sessionStorage` for that room until the browser session ends.
 - Optional display name stays in `localStorage`; when you create a room it may be stored as `createdBy`, and when you mark the map it is copied onto that event as `actorLabel`.
 - Theme preference stays in `localStorage` under `aib-sitac-theme` when set; clearing site data resets it to system.

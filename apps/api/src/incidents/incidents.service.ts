@@ -131,6 +131,11 @@ export class IncidentsService {
     }
   }
 
+  async gate(id: string): Promise<{ hasPassphrase: boolean }> {
+    const row = await this.getRaw(id)
+    return { hasPassphrase: Boolean(row.passphraseHash) }
+  }
+
   async getAuthorized(
     id: string,
     passphrase: string | undefined,

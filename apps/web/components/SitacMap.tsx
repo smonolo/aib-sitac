@@ -48,6 +48,7 @@ import { MarkInfoDialog } from '@/components/MarkInfoDialog'
 import { RoomSettingsDialog } from '@/components/RoomSettingsDialog'
 import { TextMarkDialog } from '@/components/TextMarkDialog'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { UnlockPassphraseDialog } from '@/components/UnlockPassphraseDialog'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
 import { Slider } from '@/components/ui/slider'
@@ -89,6 +90,10 @@ const TACTICAL_SYMBOLS = SYMBOL_CATALOG.filter(s => !isAnnotationSymbol(s.id))
 type Props = {
   incident: SitacIncident
   passphrase: string | null
+  locked?: boolean
+  unlockBusy?: boolean
+  unlockError?: string | null
+  onUnlock?: (passphrase: string) => void
   onIncidentChange?: (incident: SitacIncident) => void
   onPassphraseChange?: (passphrase: string | null) => void
   onAccessDenied?: () => void
@@ -97,6 +102,10 @@ type Props = {
 export function SitacMap({
   incident,
   passphrase,
+  locked = false,
+  unlockBusy = false,
+  unlockError = null,
+  onUnlock,
   onIncidentChange,
   onPassphraseChange,
   onAccessDenied,
@@ -104,6 +113,8 @@ export function SitacMap({
   const c = t()
   const onAccessDeniedRef = useRef(onAccessDenied)
   onAccessDeniedRef.current = onAccessDenied
+  const lockedRef = useRef(locked)
+  lockedRef.current = locked
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
   const initialViewRef = useRef({
@@ -215,7 +226,9 @@ export function SitacMap({
   )
 
   const refresh = useCallback(async () => {
+    if (lockedRef.current) return
     const list = await listEvents(incident.id, passphrase)
+    if (lockedRef.current) return
     setEvents(list)
     setEventsReady(true)
   }, [incident.id, passphrase])
@@ -225,6 +238,33 @@ export function SitacMap({
   }, [])
 
   useEffect(() => {
+    if (locked) {
+      setEvents([])
+      setEventsReady(false)
+      urlStepAppliedRef.current = false
+      setScrubTs(null)
+      setSelectedId(null)
+      setError(null)
+      setDrawCoords([])
+      setDrawMode('idle')
+      setPendingText(null)
+      setTextDraft('')
+      setTool('select')
+      moveDraggingRef.current = false
+      moveOriginRef.current = null
+      moveDragBaseRef.current = [0, 0]
+      moveDeltaRef.current = null
+      moveBusyRef.current = false
+      setMoveMode(false)
+      setMoveDelta(null)
+      setMoveBusy(false)
+      setMoveOverride(null)
+      setSettingsOpen(false)
+      setExportOpen(false)
+      setMarkInfoOpen(false)
+      setDeleteConfirmOpen(false)
+      return
+    }
     setEventsReady(false)
     urlStepAppliedRef.current = false
     setScrubTs(null)
@@ -235,19 +275,21 @@ export function SitacMap({
       }
       setError(String(err))
     })
-  }, [refresh])
+  }, [locked, refresh])
 
   useEffect(() => {
-    if (!eventsReady || urlStepAppliedRef.current) return
+    if (locked || !eventsReady || urlStepAppliedRef.current) return
     urlStepAppliedRef.current = true
     const step = readTimelineStepParam()
     if (step == null || markEvents.length === 0) return
     goToMarkStep(step - 1)
-  }, [eventsReady, goToMarkStep, markEvents.length])
+  }, [eventsReady, goToMarkStep, locked, markEvents.length])
 
   useEffect(() => {
+    if (locked) return
     if (passphrase) {
       const id = window.setInterval(() => {
+        if (lockedRef.current) return
         refresh().catch(err => {
           if (isPassphraseError(err)) onAccessDeniedRef.current?.()
         })
@@ -257,6 +299,7 @@ export function SitacMap({
     let stopped = false
     const es = new EventSource(eventsStreamUrl(incident.id))
     es.onmessage = msg => {
+      if (lockedRef.current || stopped) return
       try {
         const event = JSON.parse(msg.data) as SitacEvent
         setEvents(prev =>
@@ -265,7 +308,7 @@ export function SitacMap({
       } catch {}
     }
     es.onerror = () => {
-      if (stopped) return
+      if (stopped || lockedRef.current) return
       void refresh().catch(err => {
         if (!isPassphraseError(err)) return
         stopped = true
@@ -277,7 +320,7 @@ export function SitacMap({
       stopped = true
       es.close()
     }
-  }, [incident.id, passphrase, refresh])
+  }, [incident.id, locked, passphrase, refresh])
 
   useEffect(() => {
     const el = containerRef.current
@@ -385,10 +428,11 @@ export function SitacMap({
 
   const pushEvent = useCallback(
     async (op: SitacEvent['op'], payload: SitacEvent['payload']) => {
+      if (lockedRef.current) return null
       setError(null)
       const actor = await resolveActorLabel()
-      if (!actor) {
-        setError(c.actorRequired)
+      if (!actor || lockedRef.current) {
+        if (!actor) setError(c.actorRequired)
         return null
       }
       const event = await appendEvent(
@@ -396,6 +440,7 @@ export function SitacMap({
         { op, payload, actorLabel: actor },
         passphrase
       )
+      if (lockedRef.current) return null
       setEvents(prev =>
         prev.some(e => e.id === event.id) ? prev : [...prev, event]
       )
@@ -461,6 +506,7 @@ export function SitacMap({
   }, [])
 
   const selectSelectTool = () => {
+    if (locked) return
     setTool('select')
     cancelDraw()
     cancelMove()
@@ -468,6 +514,7 @@ export function SitacMap({
   }
 
   const selectSymbolTool = (id: SymbolId) => {
+    if (locked) return
     setTool(id)
     setSelectedId(null)
     cancelDraw()
@@ -520,7 +567,15 @@ export function SitacMap({
     }
 
     const onClick = (e: MapMouseEvent) => {
-      if (!live || pendingText || moveMode || moveDraggingRef.current) return
+      if (
+        locked ||
+        !live ||
+        pendingText ||
+        moveMode ||
+        moveDraggingRef.current
+      ) {
+        return
+      }
 
       if (selectMode || !symbol) {
         setSelectedId(featureIdAt(e.point))
@@ -548,7 +603,15 @@ export function SitacMap({
     }
 
     const onDblClick = (e: MapMouseEvent) => {
-      if (!live || selectMode || drawMode !== 'drawing' || pendingText) return
+      if (
+        locked ||
+        !live ||
+        selectMode ||
+        drawMode !== 'drawing' ||
+        pendingText
+      ) {
+        return
+      }
       e.preventDefault()
       void finishDraw().catch(err => setError(String(err)))
     }
@@ -565,6 +628,7 @@ export function SitacMap({
     drawMode,
     finishDraw,
     live,
+    locked,
     mapReady,
     moveMode,
     pendingText,
@@ -833,10 +897,11 @@ export function SitacMap({
   }, [cancelMove, moveMode])
 
   const showMarkControls =
-    markInfo != null ||
-    drawing ||
-    moveMode ||
-    (selectMode && selectedId != null)
+    !locked &&
+    (markInfo != null ||
+      drawing ||
+      moveMode ||
+      (selectMode && selectedId != null))
 
   return (
     <div className="relative flex min-h-0 flex-1 bg-aib-canvas text-aib-fg md:gap-3 md:p-3 dark:bg-aib-canvas-inverse dark:text-aib-fg-inverse">
@@ -924,6 +989,7 @@ export function SitacMap({
               <button
                 type="button"
                 aria-pressed={selectMode}
+                disabled={locked}
                 onClick={selectSelectTool}
                 className={cn(
                   'aib-tool-btn w-full',
@@ -940,6 +1006,7 @@ export function SitacMap({
                   key={s.id}
                   symbol={s}
                   active={tool === s.id}
+                  disabled={locked}
                   onSelect={selectSymbolTool}
                 />
               ))}
@@ -950,6 +1017,7 @@ export function SitacMap({
                   key={s.id}
                   symbol={s}
                   active={tool === s.id}
+                  disabled={locked}
                   onSelect={selectSymbolTool}
                 />
               ))}
@@ -963,7 +1031,7 @@ export function SitacMap({
               variant="quiet"
               size="sm"
               className="w-full gap-2.5"
-              disabled={!live}
+              disabled={locked || !live}
               onClick={() => setSettingsOpen(true)}
             >
               <Settings className="size-4 shrink-0" aria-hidden />
@@ -982,6 +1050,7 @@ export function SitacMap({
               variant="quiet"
               size="sm"
               className="w-full gap-2.5"
+              disabled={locked}
               onClick={() => setExportOpen(true)}
             >
               <Download className="size-4 shrink-0" aria-hidden />
@@ -1047,7 +1116,9 @@ export function SitacMap({
               <div className="flex min-w-0 items-center gap-1.5">
                 <button
                   type="button"
-                  disabled={markEvents.length === 0 || scrubIndex <= 0}
+                  disabled={
+                    locked || markEvents.length === 0 || scrubIndex <= 0
+                  }
                   aria-label={c.firstStep}
                   onClick={() => goToMarkStep(0)}
                   className="aib-quiet-btn flex h-8 w-6 shrink-0 items-center justify-center !px-0"
@@ -1056,7 +1127,9 @@ export function SitacMap({
                 </button>
                 <button
                   type="button"
-                  disabled={markEvents.length === 0 || scrubIndex <= 0}
+                  disabled={
+                    locked || markEvents.length === 0 || scrubIndex <= 0
+                  }
                   aria-label={c.prevStep}
                   onClick={() => goToMarkStep(scrubIndex - 1)}
                   className="aib-quiet-btn flex h-8 w-6 shrink-0 items-center justify-center !px-0"
@@ -1068,7 +1141,7 @@ export function SitacMap({
                   min={0}
                   max={Math.max(markEvents.length - 1, 1)}
                   value={[scrubIndex]}
-                  disabled={markEvents.length <= 1}
+                  disabled={locked || markEvents.length <= 1}
                   onValueChange={values => {
                     const list = Array.isArray(values) ? values : [values]
                     goToMarkStep(Number(list[0] ?? 0))
@@ -1077,6 +1150,7 @@ export function SitacMap({
                 <button
                   type="button"
                   disabled={
+                    locked ||
                     markEvents.length === 0 ||
                     scrubIndex >= markEvents.length - 1
                   }
@@ -1089,6 +1163,7 @@ export function SitacMap({
                 <button
                   type="button"
                   disabled={
+                    locked ||
                     markEvents.length === 0 ||
                     scrubIndex >= markEvents.length - 1
                   }
@@ -1284,7 +1359,7 @@ export function SitacMap({
           onCancel={cancelDraw}
         />
         <RoomSettingsDialog
-          open={settingsOpen}
+          open={settingsOpen && !locked}
           incident={incident}
           passphrase={passphrase}
           onClose={() => setSettingsOpen(false)}
@@ -1310,13 +1385,19 @@ export function SitacMap({
         />
         <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
         <ExportDialog
-          open={exportOpen}
+          open={exportOpen && !locked}
           busy={exportBusy}
           onClose={() => {
             if (!exportBusy) setExportOpen(false)
           }}
           onExportGeoJson={exportGeoJson}
           onExportPng={() => void exportPng()}
+        />
+        <UnlockPassphraseDialog
+          open={locked}
+          busy={unlockBusy}
+          error={unlockError}
+          onSubmit={pass => onUnlock?.(pass)}
         />
       </div>
     </div>
@@ -1369,16 +1450,19 @@ function TimelineMarkText({ label, meta }: { label: string; meta: string }) {
 function SymbolToolButton({
   symbol,
   active,
+  disabled = false,
   onSelect,
 }: {
   symbol: (typeof SYMBOL_CATALOG)[number]
   active: boolean
+  disabled?: boolean
   onSelect: (id: SymbolId) => void
 }) {
   return (
     <button
       type="button"
       aria-pressed={active}
+      disabled={disabled}
       onClick={() => onSelect(symbol.id)}
       className={cn(
         'aib-tool-btn',
