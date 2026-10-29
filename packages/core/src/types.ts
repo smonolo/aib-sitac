@@ -83,6 +83,7 @@ export type SitacIncident = {
   id: string
   title: string
   createdAt: string
+  createdBy: string | null
   centerLng: number
   centerLat: number
   zoom: number

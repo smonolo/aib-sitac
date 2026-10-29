@@ -25,10 +25,10 @@ describe('copy catalog', () => {
     assert.match(c.unofficial, /Protezione Civile/)
   })
 
-  test('symbolHelp covers every catalog symbol', () => {
+  test('symbolPurpose covers every catalog symbol', () => {
     for (const id of SYMBOL_IDS) {
-      assert.ok(copy.symbolHelp[id], `missing symbolHelp for ${id}`)
-      assert.ok(copy.symbolHelp[id].length > 10)
+      assert.ok(copy.symbolPurpose[id], `missing symbolPurpose for ${id}`)
+      assert.ok(copy.symbolPurpose[id].length > 10)
     }
   })
 })
@@ -54,7 +54,7 @@ describe('drawHintForGeometry', () => {
 
 describe('format helpers', () => {
   test('formatStepOf', () => {
-    assert.equal(formatStepOf(2, 5), 'Step 2 / 5')
+    assert.equal(formatStepOf(2, 5), '2/5')
   })
 
   test('formatPageOf', () => {

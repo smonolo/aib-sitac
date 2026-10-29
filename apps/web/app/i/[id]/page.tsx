@@ -113,7 +113,7 @@ export default function IncidentPage() {
     return (
       <main className="mx-auto flex min-h-0 w-full max-w-sm flex-1 flex-col justify-center gap-4 px-4 sm:px-5">
         <p className="text-[15px] text-aib-brand">
-          {c.error}: {error ?? 'Non trovato'}
+          {c.error}: {error ?? c.notFound}
         </p>
       </main>
     )

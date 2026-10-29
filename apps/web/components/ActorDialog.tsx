@@ -46,13 +46,17 @@ export function ActorDialog({ open, onClose, onChange }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-aib-canvas-inverse/70 p-4">
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-aib-canvas-inverse/70 p-4"
+      onClick={onClose}
+    >
       <form
         onSubmit={save}
         className="flex w-full max-w-sm flex-col gap-5 rounded-aib bg-aib-surface-dark p-5 shadow-lg sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby="actor-dialog-title"
+        onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3">
           <h2
@@ -89,7 +93,7 @@ export function ActorDialog({ open, onClose, onChange }: Props) {
           {hasSaved ? (
             <Button
               type="button"
-              variant="ghost"
+              variant="secondary"
               className="w-full"
               onClick={logout}
             >

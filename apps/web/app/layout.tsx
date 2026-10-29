@@ -1,7 +1,5 @@
 import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
-import { SiteFooter } from '@/components/SiteFooter'
-import { SiteNavbar } from '@/components/SiteNavbar'
 import { cn } from '@/lib/utils'
 import './globals.css'
 
@@ -25,11 +23,7 @@ export default function RootLayout({
   return (
     <html lang="it" className={cn('dark h-full font-sans', geist.variable)}>
       <body className="flex h-dvh flex-col overflow-hidden bg-aib-canvas-inverse text-aib-fg-inverse antialiased">
-        <SiteNavbar />
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {children}
-        </div>
-        <SiteFooter />
+        {children}
       </body>
     </html>
   )

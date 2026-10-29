@@ -14,6 +14,8 @@ describe('symbol icons', () => {
       assert.match(svg, /^<svg /)
       assert.match(svg, /#AF2525/)
       assert.match(svg, /xmlns="http:\/\/www.w3.org\/2000\/svg"/)
+      assert.match(svg, /rx="12"/)
+      assert.match(svg, /rx="11"/)
 
       const url = symbolIconDataUrl(id, '#AF2525')
       assert.match(url, /^data:image\/svg\+xml;charset=utf-8,/)

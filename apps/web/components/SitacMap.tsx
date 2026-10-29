@@ -1,19 +1,26 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Image from 'next/image'
+import Link from 'next/link'
 import type {
   GeoJSONSource,
   Map as MapLibreMap,
   MapMouseEvent,
 } from 'maplibre-gl'
 import {
-  Braces,
   ChevronLeft,
   ChevronRight,
-  Image as ImageIcon,
+  ChevronsLeft,
+  ChevronsRight,
+  CircleHelp,
+  Download,
+  Info,
   Link2,
+  Lock,
   MousePointer2,
   Settings,
+  User,
 } from 'lucide-react'
 import {
   SYMBOL_CATALOG,
@@ -29,11 +36,15 @@ import {
   type SitacIncident,
   type SymbolId,
 } from '@aib-sitac/core'
+import { AboutDialog } from '@/components/AboutDialog'
 import { ActorDialog } from '@/components/ActorDialog'
+import { DeleteMarkDialog } from '@/components/DeleteMarkDialog'
+import { ExportDialog } from '@/components/ExportDialog'
+import { MarkInfoDialog } from '@/components/MarkInfoDialog'
 import { RoomSettingsDialog } from '@/components/RoomSettingsDialog'
 import { TextMarkDialog } from '@/components/TextMarkDialog'
-import { ToolTipCard } from '@/components/ToolTipCard'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/icon-button'
 import { Slider } from '@/components/ui/slider'
 import { appendEvent, eventsStreamUrl, listEvents } from '@/lib/api'
 import {
@@ -47,6 +58,7 @@ import {
   draftToDisplayGeoJson,
   featuresToDisplayGeoJson,
 } from '@/lib/map-display'
+import { MarkIcon, markIconSize } from '@/components/MarkIcon'
 import { symbolIconDataUrl } from '@/lib/map-icons'
 import { addSitacSourcesAndLayers, PICK_LAYERS } from '@/lib/map-layers'
 import { formatTs, readActor } from '@/lib/storage'
@@ -103,7 +115,14 @@ export function SitacMap({
   const [textDraft, setTextDraft] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [actorOpen, setActorOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exportBusy, setExportBusy] = useState(false)
+  const [markInfoOpen, setMarkInfoOpen] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deleteBusy, setDeleteBusy] = useState(false)
   const [eventsReady, setEventsReady] = useState(false)
+  const [profileActor, setProfileActor] = useState('')
   const actorWaitersRef = useRef<Array<(name: string | null) => void>>([])
   const urlStepAppliedRef = useRef(false)
 
@@ -152,6 +171,10 @@ export function SitacMap({
     setEvents(list)
     setEventsReady(true)
   }, [incident.id, passphrase])
+
+  useEffect(() => {
+    setProfileActor(readActor())
+  }, [])
 
   useEffect(() => {
     setEventsReady(false)
@@ -456,10 +479,16 @@ export function SitacMap({
   ])
 
   const deleteSelected = async () => {
-    if (!selectedId || !live) return
-    const event = await pushEvent('delete_feature', { featureId: selectedId })
-    if (!event) return
-    setSelectedId(null)
+    if (!selectedId || !live || deleteBusy) return
+    setDeleteBusy(true)
+    try {
+      const event = await pushEvent('delete_feature', { featureId: selectedId })
+      if (!event) return
+      setSelectedId(null)
+      setDeleteConfirmOpen(false)
+    } finally {
+      setDeleteBusy(false)
+    }
   }
 
   const exportGeoJson = () => {
@@ -472,33 +501,38 @@ export function SitacMap({
     a.download = `sitac-${incident.id}.geojson`
     a.click()
     URL.revokeObjectURL(a.href)
+    setExportOpen(false)
   }
 
   const exportPng = async () => {
     const map = mapRef.current
-    if (!map) return
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const timeout = window.setTimeout(() => {
-        reject(new Error('PNG export timed out'))
-      }, 8000)
-      map.once('render', () => {
-        window.clearTimeout(timeout)
-        try {
-          resolve(map.getCanvas().toDataURL('image/png'))
-        } catch (err) {
-          reject(err)
-        }
+    if (!map || exportBusy) return
+    setExportBusy(true)
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const timeout = window.setTimeout(() => {
+          reject(new Error('PNG export timed out'))
+        }, 8000)
+        map.once('render', () => {
+          window.clearTimeout(timeout)
+          try {
+            resolve(map.getCanvas().toDataURL('image/png'))
+          } catch (err) {
+            reject(err)
+          }
+        })
+        map.triggerRepaint()
       })
-      map.triggerRepaint()
-    }).catch(err => {
+      const a = document.createElement('a')
+      a.href = dataUrl
+      a.download = `sitac-${incident.id}.png`
+      a.click()
+      setExportOpen(false)
+    } catch (err) {
       setError(String(err))
-      return null
-    })
-    if (!dataUrl) return
-    const a = document.createElement('a')
-    a.href = dataUrl
-    a.download = `sitac-${incident.id}.png`
-    a.click()
+    } finally {
+      setExportBusy(false)
+    }
   }
 
   const copyLink = async () => {
@@ -518,20 +552,23 @@ export function SitacMap({
     : null
 
   const currentMarkSummary = markSummaries[scrubIndex] ?? null
+  const drawing = drawMode === 'drawing' && !selectMode
 
-  const activeTip = useMemo((): {
+  const markInfo = useMemo((): {
     iconSrc?: string
     icon?: React.ReactNode
     title: string
     kindLabel?: string
-    body: string
+    purpose: string
+    howTo: string
   } | null => {
     if (symbol) {
       return {
         iconSrc: SYMBOL_ICON_URLS[symbol.id],
         title: symbol.label,
         kindLabel: geometryKindLabel(symbol.geometry),
-        body: `${c.symbolHelp[symbol.id]} ${drawHintForGeometry(symbol.geometry)}`,
+        purpose: c.symbolPurpose[symbol.id],
+        howTo: drawHintForGeometry(symbol.geometry),
       }
     }
     if (selectMode && selectedSymbol && selectedFeature) {
@@ -541,51 +578,107 @@ export function SitacMap({
         iconSrc: SYMBOL_ICON_URLS[selectedSymbol.id],
         title: label,
         kindLabel: geometryKindLabel(selectedFeature.properties.geometryKind),
-        body: c.selectedMarkHint,
+        purpose: c.symbolPurpose[selectedSymbol.id],
+        howTo: c.selectedMarkHow,
       }
     }
     if (selectMode) {
       return {
         icon: <MousePointer2 className="size-5" aria-hidden />,
         title: c.selectTool,
-        body: c.selectToolHint,
+        purpose: c.selectToolPurpose,
+        howTo: c.selectToolHow,
       }
     }
     return null
   }, [
     c.selectTool,
-    c.selectToolHint,
-    c.selectedMarkHint,
-    c.symbolHelp,
+    c.selectToolHow,
+    c.selectToolPurpose,
+    c.selectedMarkHow,
+    c.symbolPurpose,
     selectMode,
     selectedFeature,
     selectedSymbol,
     symbol,
   ])
 
+  useEffect(() => {
+    setMarkInfoOpen(false)
+    setDeleteConfirmOpen(false)
+  }, [tool, selectedId, drawMode])
+
+  const showMarkControls =
+    markInfo != null || drawing || (selectMode && selectedId != null)
+
   return (
-    <div className="flex min-h-0 flex-1 bg-aib-canvas-inverse text-aib-fg-inverse">
+    <div className="flex min-h-0 flex-1 gap-3 bg-aib-canvas-inverse p-3 text-aib-fg-inverse">
       <aside
-        className="flex w-56 shrink-0 flex-col border-r border-aib-border-dark bg-aib-surface-dark sm:w-64"
-        aria-label={c.palette}
+        className="flex w-64 shrink-0 flex-col overflow-hidden rounded-aib bg-aib-surface-dark shadow-lg sm:w-72"
+        aria-label={c.roomInfo}
       >
-        <div className="shrink-0 p-2.5">
-          <button
-            type="button"
-            aria-pressed={selectMode}
-            onClick={selectSelectTool}
-            className={cn(
-              'aib-tool-btn w-full',
-              selectMode ? 'aib-tool-btn-active' : 'aib-tool-btn-idle'
-            )}
+        <div className="shrink-0 border-b border-aib-border-dark p-3">
+          <Link
+            href="/"
+            className="flex items-center gap-2 no-underline transition-opacity hover:opacity-70"
+            aria-label={c.homeAria}
           >
-            <MousePointer2 className="size-[22px] shrink-0" aria-hidden />
-            <span className="min-w-0 flex-1 truncate">{c.selectTool}</span>
-          </button>
+            <Image
+              src="/aib-assets/logo.png"
+              alt=""
+              width={350}
+              height={180}
+              className="h-4.5 w-auto sm:h-5"
+              priority
+            />
+            <span className="text-[18px] font-bold tracking-[-0.4px] text-aib-fg-inverse sm:text-[20px]">
+              SITAC
+            </span>
+          </Link>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col border-t border-aib-border-dark">
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-            <div className="flex flex-col gap-0.5 p-2.5">
+
+        <section
+          className="shrink-0 space-y-2 border-b border-aib-border-dark p-3"
+          aria-label={c.roomInfo}
+        >
+          <div className="flex items-center gap-2">
+            <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold text-aib-fg-inverse">
+              {incident.title}
+            </h2>
+            {incident.hasPassphrase ? (
+              <Lock
+                className="size-3.5 shrink-0 text-aib-muted-dark"
+                aria-label={c.roomPassProtected}
+              />
+            ) : null}
+          </div>
+          {error ? (
+            <p className="text-[13px] text-aib-brand">
+              {c.error}: {error}
+            </p>
+          ) : null}
+        </section>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          <div
+            className="flex flex-col overflow-hidden rounded-aib-sm bg-aib-canvas-inverse"
+            aria-label={c.palette}
+          >
+            <div className="flex flex-col gap-0.5 p-1.5">
+              <button
+                type="button"
+                aria-pressed={selectMode}
+                onClick={selectSelectTool}
+                className={cn(
+                  'aib-tool-btn w-full',
+                  selectMode ? 'aib-tool-btn-active' : 'aib-tool-btn-idle'
+                )}
+              >
+                <MousePointer2 className="size-[26px] shrink-0" aria-hidden />
+                <span className="min-w-0 flex-1 truncate">{c.selectTool}</span>
+              </button>
+            </div>
+            <div className="flex flex-col gap-0.5 border-t border-aib-border-dark p-1.5">
               {ANNOTATION_SYMBOLS.map(s => (
                 <SymbolToolButton
                   key={s.id}
@@ -595,7 +688,7 @@ export function SitacMap({
                 />
               ))}
             </div>
-            <div className="flex flex-col gap-0.5 border-t border-aib-border-dark p-2.5">
+            <div className="flex flex-col gap-0.5 border-t border-aib-border-dark p-1.5">
               {TACTICAL_SYMBOLS.map(s => (
                 <SymbolToolButton
                   key={s.id}
@@ -606,51 +699,267 @@ export function SitacMap({
               ))}
             </div>
           </div>
-          <div className="flex shrink-0 flex-col gap-2 border-t border-aib-border-dark p-2.5">
-            {activeTip ? (
-              <ToolTipCard
-                iconSrc={activeTip.iconSrc}
-                icon={activeTip.icon}
-                title={activeTip.title}
-                kindLabel={activeTip.kindLabel}
-                body={activeTip.body}
-              />
-            ) : null}
-            {drawMode === 'drawing' && !selectMode ? (
-              <div className="flex gap-1.5">
-                <Button
-                  size="sm"
-                  className="flex-1"
-                  onClick={() =>
-                    void finishDraw().catch(err => setError(String(err)))
-                  }
-                >
-                  {c.finishDraw}
-                </Button>
-                <Button variant="ghost" size="sm" onClick={cancelDraw}>
-                  {c.cancelDraw}
-                </Button>
-              </div>
-            ) : null}
+        </div>
+
+        <div className="flex shrink-0 flex-col">
+          <div className="flex flex-col gap-0.5 border-t border-aib-border-dark p-3">
             <Button
-              variant="destructive"
+              variant="quiet"
               size="sm"
-              className="w-full"
-              disabled={!selectedId || !live || !selectMode}
-              onClick={() =>
-                void deleteSelected().catch(err => setError(String(err)))
-              }
+              className="w-full gap-2.5"
+              disabled={!live}
+              onClick={() => setSettingsOpen(true)}
             >
-              {c.deleteFeature}
+              <Settings className="size-4 shrink-0" aria-hidden />
+              {c.roomSettingsOpen}
+            </Button>
+            <Button
+              variant="quiet"
+              size="sm"
+              className="w-full gap-2.5"
+              onClick={() => void copyLink()}
+            >
+              <Link2 className="size-4 shrink-0" aria-hidden />
+              {copied ? c.copied : c.shareLink}
+            </Button>
+            <Button
+              variant="quiet"
+              size="sm"
+              className="w-full gap-2.5"
+              onClick={() => setExportOpen(true)}
+            >
+              <Download className="size-4 shrink-0" aria-hidden />
+              {c.exportOpen}
+            </Button>
+            <Button
+              variant="quiet"
+              size="sm"
+              className="w-full gap-2.5"
+              onClick={() => setAboutOpen(true)}
+            >
+              <CircleHelp className="size-4 shrink-0" aria-hidden />
+              {c.aboutOpen}
+            </Button>
+          </div>
+          <div className="border-t border-aib-border-dark p-3">
+            <Button
+              variant="quiet"
+              size="sm"
+              className="w-full gap-2.5"
+              aria-label={c.actorDialogOpen}
+              onClick={() => setActorOpen(true)}
+            >
+              <User className="size-4 shrink-0" aria-hidden />
+              <span className="min-w-0 truncate">
+                {profileActor.trim() || c.actorDialogOpen}
+              </span>
             </Button>
           </div>
         </div>
       </aside>
 
       <div className="relative min-h-0 min-w-0 flex-1">
-        <div
-          ref={containerRef}
-          className="absolute inset-0 h-full w-full [&_.maplibregl-map]:h-full [&_.maplibregl-map]:w-full"
+        <div className="relative h-full min-h-0 w-full overflow-hidden rounded-aib border border-aib-border-dark bg-aib-canvas-inverse shadow-lg">
+          <div
+            ref={containerRef}
+            className="absolute inset-0 h-full w-full [&_.maplibregl-map]:h-full [&_.maplibregl-map]:w-full"
+          />
+          <div className="pointer-events-none absolute inset-x-0 top-3 z-10 flex justify-center px-3">
+            <div
+              className="pointer-events-auto flex w-full max-w-xl min-w-0 items-center gap-2 overflow-hidden rounded-aib border border-aib-border-dark bg-aib-surface-dark px-2.5 py-1.5 shadow-lg"
+              role="region"
+              aria-label={c.timeline}
+            >
+              <button
+                type="button"
+                disabled={markEvents.length === 0 || scrubIndex <= 0}
+                aria-label={c.firstStep}
+                onClick={() => goToMarkStep(0)}
+                className="aib-quiet-btn flex h-8 w-6 shrink-0 items-center justify-center !px-0"
+              >
+                <ChevronsLeft className="size-4" aria-hidden />
+              </button>
+              <button
+                type="button"
+                disabled={markEvents.length === 0 || scrubIndex <= 0}
+                aria-label={c.prevStep}
+                onClick={() => goToMarkStep(scrubIndex - 1)}
+                className="aib-quiet-btn flex h-8 w-6 shrink-0 items-center justify-center !px-0"
+              >
+                <ChevronLeft className="size-4" aria-hidden />
+              </button>
+              <Slider
+                className="w-48 shrink-0"
+                min={0}
+                max={Math.max(markEvents.length - 1, 1)}
+                value={[scrubIndex]}
+                disabled={markEvents.length <= 1}
+                onValueChange={values => {
+                  const list = Array.isArray(values) ? values : [values]
+                  goToMarkStep(Number(list[0] ?? 0))
+                }}
+              />
+              <button
+                type="button"
+                disabled={
+                  markEvents.length === 0 || scrubIndex >= markEvents.length - 1
+                }
+                aria-label={c.nextStep}
+                onClick={() => goToMarkStep(scrubIndex + 1)}
+                className="aib-quiet-btn flex h-8 w-6 shrink-0 items-center justify-center !px-0"
+              >
+                <ChevronRight className="size-4" aria-hidden />
+              </button>
+              <button
+                type="button"
+                disabled={
+                  markEvents.length === 0 || scrubIndex >= markEvents.length - 1
+                }
+                aria-label={c.lastStep}
+                onClick={() => goToMarkStep(markEvents.length - 1)}
+                className="aib-quiet-btn flex h-8 w-6 shrink-0 items-center justify-center !px-0"
+              >
+                <ChevronsRight className="size-4" aria-hidden />
+              </button>
+              <p className="w-10 shrink-0 text-right text-[12px] text-aib-muted-dark tabular-nums">
+                {formatStepOf(
+                  markEvents.length === 0 ? 0 : scrubIndex + 1,
+                  markEvents.length
+                )}
+              </p>
+              <div
+                className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden border-l border-aib-border-dark pl-2.5"
+                role="status"
+              >
+                {currentMarkSummary ? (
+                  <>
+                    {currentMarkSummary.symbolId ? (
+                      <MarkIcon
+                        src={SYMBOL_ICON_URLS[currentMarkSummary.symbolId]}
+                        size={markIconSize.timeline}
+                      />
+                    ) : (
+                      <span
+                        className="shrink-0 rounded-aib-sm bg-aib-border-dark"
+                        style={{
+                          width: markIconSize.timeline,
+                          height: markIconSize.timeline,
+                        }}
+                      />
+                    )}
+                    <TimelineMarkText
+                      label={currentMarkSummary.label}
+                      meta={`${
+                        currentMarkSummary.action === 'add'
+                          ? c.timelineAdded
+                          : c.timelineRemoved
+                      }${
+                        currentMarkSummary.actorLabel
+                          ? ` · ${currentMarkSummary.actorLabel}`
+                          : ''
+                      } · ${formatTs(currentMarkSummary.ts)}`}
+                    />
+                  </>
+                ) : (
+                  <span className="min-w-0 flex-1 truncate text-[12px] text-aib-muted-dark">
+                    {c.noEvents}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {showMarkControls ? (
+            <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center px-3">
+              <div
+                className="pointer-events-auto flex max-w-full items-center gap-1.5 rounded-aib border border-aib-border-dark bg-aib-surface-dark px-2.5 py-1.5 shadow-lg"
+                role="region"
+                aria-label={c.markControls}
+              >
+                {markInfo ? (
+                  <div className="flex min-w-0 items-center gap-2 px-1">
+                    {markInfo.iconSrc ? (
+                      <MarkIcon
+                        src={markInfo.iconSrc}
+                        size={markIconSize.control}
+                      />
+                    ) : markInfo.icon ? (
+                      <span
+                        className="flex shrink-0 items-center justify-center text-aib-fg-inverse [&_svg]:size-[18px]"
+                        style={{
+                          width: markIconSize.control,
+                          height: markIconSize.control,
+                        }}
+                      >
+                        {markInfo.icon}
+                      </span>
+                    ) : null}
+                    <span className="max-w-[9rem] truncate text-[13px] font-semibold text-aib-fg-inverse sm:max-w-[12rem]">
+                      {markInfo.title}
+                    </span>
+                    <IconButton
+                      aria-label={c.markInfoOpen}
+                      aria-expanded={markInfoOpen}
+                      onClick={() => setMarkInfoOpen(true)}
+                      className="size-8 [&_svg]:size-4"
+                    >
+                      <Info />
+                    </IconButton>
+                  </div>
+                ) : null}
+                {drawing ? (
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        void finishDraw().catch(err => setError(String(err)))
+                      }
+                    >
+                      {c.finishDraw}
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={cancelDraw}>
+                      {c.cancelDraw}
+                    </Button>
+                  </>
+                ) : null}
+                {selectMode && selectedId ? (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={!live}
+                    onClick={() => setDeleteConfirmOpen(true)}
+                  >
+                    {c.deleteFeature}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+        </div>
+        <MarkInfoDialog
+          open={markInfoOpen && markInfo != null}
+          title={markInfo?.title ?? ''}
+          kindLabel={markInfo?.kindLabel}
+          iconSrc={markInfo?.iconSrc}
+          icon={markInfo?.icon}
+          purpose={markInfo?.purpose ?? ''}
+          howTo={markInfo?.howTo ?? ''}
+          onClose={() => setMarkInfoOpen(false)}
+        />
+        <DeleteMarkDialog
+          open={deleteConfirmOpen && selectedId != null}
+          markLabel={
+            selectMode && selectedSymbol && selectedFeature
+              ? selectedFeature.properties.label?.trim() || selectedSymbol.label
+              : undefined
+          }
+          busy={deleteBusy}
+          onCancel={() => {
+            if (!deleteBusy) setDeleteConfirmOpen(false)
+          }}
+          onConfirm={() =>
+            void deleteSelected().catch(err => setError(String(err)))
+          }
         />
         <TextMarkDialog
           open={pendingText != null}
@@ -671,165 +980,74 @@ export function SitacMap({
           open={actorOpen}
           onClose={() => {
             setActorOpen(false)
-            settleActorWaiters(readActor().trim() || null)
+            const name = readActor().trim()
+            setProfileActor(name)
+            settleActorWaiters(name || null)
           }}
           onChange={name => {
             const trimmed = name.trim()
+            setProfileActor(trimmed)
             if (trimmed) {
               setActorOpen(false)
               settleActorWaiters(trimmed)
             }
           }}
         />
+        <AboutDialog open={aboutOpen} onClose={() => setAboutOpen(false)} />
+        <ExportDialog
+          open={exportOpen}
+          busy={exportBusy}
+          onClose={() => {
+            if (!exportBusy) setExportOpen(false)
+          }}
+          onExportGeoJson={exportGeoJson}
+          onExportPng={() => void exportPng()}
+        />
       </div>
-
-      <aside className="flex w-72 shrink-0 flex-col border-l border-aib-border-dark bg-aib-surface-dark sm:w-80">
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="text-[13px] font-medium text-aib-muted-dark">
-              {c.timeline}
-            </p>
-            <p className="shrink-0 text-[13px] text-aib-muted-dark tabular-nums">
-              {formatStepOf(
-                markEvents.length === 0 ? 0 : scrubIndex + 1,
-                markEvents.length
-              )}
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Slider
-              min={0}
-              max={Math.max(markEvents.length - 1, 1)}
-              value={[scrubIndex]}
-              disabled={markEvents.length <= 1}
-              onValueChange={values => {
-                const list = Array.isArray(values) ? values : [values]
-                goToMarkStep(Number(list[0] ?? 0))
-              }}
-            />
-            <p className="text-[13px] leading-snug text-aib-muted-dark">
-              {markEvents.length === 0
-                ? c.noEvents
-                : formatTs(markEvents[scrubIndex]?.ts ?? incident.createdAt)}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-0.5">
-            <button
-              type="button"
-              disabled={markEvents.length === 0 || scrubIndex <= 0}
-              aria-label={c.prevStep}
-              onClick={() => goToMarkStep(scrubIndex - 1)}
-              className="aib-quiet-btn flex flex-1 items-center justify-center"
-            >
-              <ChevronLeft className="size-4" aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={() => goToMarkStep(markEvents.length - 1)}
-              className={cn(
-                'aib-quiet-btn flex-[2]',
-                live && 'aib-tool-btn-active hover:opacity-100'
-              )}
-            >
-              {c.live}
-            </button>
-            <button
-              type="button"
-              disabled={
-                markEvents.length === 0 || scrubIndex >= markEvents.length - 1
-              }
-              aria-label={c.nextStep}
-              onClick={() => goToMarkStep(scrubIndex + 1)}
-              className="aib-quiet-btn flex flex-1 items-center justify-center"
-            >
-              <ChevronRight className="size-4" aria-hidden />
-            </button>
-          </div>
-
-          {currentMarkSummary ? (
-            <div
-              className="flex w-full items-center gap-2.5 rounded-aib-sm bg-aib-surface-muted-dark px-2.5 py-2"
-              role="status"
-            >
-              {currentMarkSummary.symbolId ? (
-                <img
-                  src={SYMBOL_ICON_URLS[currentMarkSummary.symbolId]}
-                  alt=""
-                  width={28}
-                  height={28}
-                  className="size-7 shrink-0"
-                />
-              ) : (
-                <span className="size-7 shrink-0 rounded-aib-sm bg-aib-border-dark" />
-              )}
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-semibold text-aib-fg-inverse">
-                  {currentMarkSummary.label}
-                </span>
-                <span className="mt-0.5 block text-[11px] leading-snug text-aib-muted-dark">
-                  {currentMarkSummary.action === 'add'
-                    ? c.timelineAdded
-                    : c.timelineRemoved}
-                  {currentMarkSummary.actorLabel
-                    ? ` · ${currentMarkSummary.actorLabel}`
-                    : ''}
-                  {' · '}
-                  {formatTs(currentMarkSummary.ts)}
-                </span>
-              </span>
-            </div>
-          ) : null}
-
-          {error ? (
-            <p className="text-[13px] text-aib-brand">
-              {c.error}: {error}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="flex shrink-0 flex-col gap-0.5 border-t border-aib-border-dark p-2.5">
-          <Button
-            variant="quiet"
-            size="sm"
-            className="w-full gap-2.5"
-            disabled={!live}
-            onClick={() => setSettingsOpen(true)}
-          >
-            <Settings className="size-4 shrink-0" aria-hidden />
-            {c.roomSettingsOpen}
-          </Button>
-          <Button
-            variant="quiet"
-            size="sm"
-            className="w-full gap-2.5"
-            onClick={() => void copyLink()}
-          >
-            <Link2 className="size-4 shrink-0" aria-hidden />
-            {copied ? c.copied : c.shareLink}
-          </Button>
-          <Button
-            variant="quiet"
-            size="sm"
-            className="w-full gap-2.5"
-            onClick={exportGeoJson}
-          >
-            <Braces className="size-4 shrink-0" aria-hidden />
-            {c.exportGeoJson}
-          </Button>
-          <Button
-            variant="quiet"
-            size="sm"
-            className="w-full gap-2.5"
-            onClick={() => void exportPng()}
-          >
-            <ImageIcon className="size-4 shrink-0" aria-hidden />
-            {c.exportPng}
-          </Button>
-        </div>
-      </aside>
     </div>
+  )
+}
+
+function TimelineMarkText({ label, meta }: { label: string; meta: string }) {
+  const labelRef = useRef<HTMLSpanElement>(null)
+  const metaRef = useRef<HTMLSpanElement>(null)
+  const [tip, setTip] = useState<string | undefined>()
+  const full = `${label} · ${meta}`
+
+  useEffect(() => {
+    const labelEl = labelRef.current
+    const metaEl = metaRef.current
+    if (!labelEl || !metaEl) return
+
+    const update = () => {
+      const cut =
+        labelEl.scrollWidth > labelEl.clientWidth + 0.5 ||
+        metaEl.scrollWidth > metaEl.clientWidth + 0.5
+      setTip(cut ? full : undefined)
+    }
+
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(labelEl)
+    observer.observe(metaEl)
+    return () => observer.disconnect()
+  }, [full])
+
+  return (
+    <span className="min-w-0 flex-1 overflow-hidden leading-tight" title={tip}>
+      <span
+        ref={labelRef}
+        className="block truncate text-[12px] font-semibold text-aib-fg-inverse"
+      >
+        {label}
+      </span>
+      <span
+        ref={metaRef}
+        className="block truncate text-[11px] text-aib-muted-dark"
+      >
+        {meta}
+      </span>
+    </span>
   )
 }
 
@@ -852,13 +1070,7 @@ function SymbolToolButton({
         active ? 'aib-tool-btn-active' : 'aib-tool-btn-idle'
       )}
     >
-      <img
-        src={SYMBOL_ICON_URLS[symbol.id]}
-        alt=""
-        width={22}
-        height={22}
-        className="size-[22px] shrink-0"
-      />
+      <MarkIcon src={SYMBOL_ICON_URLS[symbol.id]} size={markIconSize.sidebar} />
       <span className="min-w-0 flex-1 truncate">{symbol.label}</span>
       <span
         className={cn(

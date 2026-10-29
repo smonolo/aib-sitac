@@ -28,6 +28,7 @@ function toIncident(row: IncidentRow): SitacIncident {
     id: row.id,
     title: row.title,
     createdAt: row.createdAt.toISOString(),
+    createdBy: row.createdBy?.trim() || null,
     centerLng: row.centerLng,
     centerLat: row.centerLat,
     zoom: row.zoom,
@@ -50,16 +51,19 @@ export class IncidentsService {
     centerLat?: number
     zoom?: number
     passphrase?: string | null
+    createdBy?: string | null
   }): Promise<SitacIncident> {
     const hash =
       input.passphrase && input.passphrase.length > 0
         ? await hashPassphrase(input.passphrase)
         : null
+    const createdBy = input.createdBy?.trim() || null
 
     const [row] = await getDb()
       .insert(incidents)
       .values({
         title: input.title.trim() || 'Intervento',
+        createdBy,
         centerLng: input.centerLng ?? DEFAULT_CENTER.lng,
         centerLat: input.centerLat ?? DEFAULT_CENTER.lat,
         zoom: input.zoom ?? DEFAULT_CENTER.zoom,

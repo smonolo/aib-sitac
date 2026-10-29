@@ -33,9 +33,9 @@ export default function PrivacyPage() {
             nel database PostgreSQL del prodotto quando crei o apri una stanza.
           </li>
           <li>
-            L’elenco interventi in home è pubblico (titolo, data Europe/Rome, se
-            protetto); aprire la mappa resta vincolato al link e, se impostata,
-            alla password.
+            L’elenco interventi in home è pubblico (titolo, data Europe/Rome,
+            eventuale creatore, se protetto); aprire la mappa resta vincolato al
+            link e, se impostata, alla password.
           </li>
           <li>
             Niente account in v1: l’accesso è il link dell’intervento e, se
@@ -45,8 +45,9 @@ export default function PrivacyPage() {
           </li>
           <li>Nessun SDK analytics incluso di default.</li>
           <li>
-            Il nome visualizzato opzionale (icona utente in alto) resta in
-            localStorage; quando segni la mappa viene copiato sull’evento.
+            Il nome visualizzato opzionale (profilo in home o in mappa) resta in
+            localStorage; alla creazione di un intervento può essere salvato
+            come creatore, e quando segni la mappa viene copiato sull’evento.
           </li>
           <li>
             Le tile della mappa arrivano da server HOT OSM / openstreetmap.fr,

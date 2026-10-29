@@ -4,7 +4,8 @@ const SIZE = 64
 
 function svg(body: string, color: string): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">
-  <rect x="2" y="2" width="60" height="60" rx="10" ry="10" fill="${color}" stroke="#ffffff" stroke-width="1.5"/>
+  <rect width="${SIZE}" height="${SIZE}" rx="12" ry="12" fill="#ffffff"/>
+  <rect x="1" y="1" width="62" height="62" rx="11" ry="11" fill="${color}"/>
   ${body}
 </svg>`
 }

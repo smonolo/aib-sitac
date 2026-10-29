@@ -7,7 +7,8 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default:
+        default: 'bg-aib-surface text-aib-fg hover:opacity-70',
+        secondary:
           'bg-aib-surface-muted text-aib-fg hover:opacity-70 dark:bg-aib-surface-muted-dark dark:text-aib-fg-inverse',
         ghost:
           'bg-transparent text-aib-muted hover:opacity-70 dark:text-aib-muted-dark',
@@ -37,7 +38,7 @@ function Button({
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={cn(buttonVariants({ variant, size }), className)}
       {...props}
     />
   )

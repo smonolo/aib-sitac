@@ -34,13 +34,17 @@ export function TextMarkDialog({
   }
 
   return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center bg-aib-canvas-inverse/70 p-4">
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-aib-canvas-inverse/70 p-4"
+      onClick={onCancel}
+    >
       <form
         onSubmit={submit}
         className="flex w-full max-w-sm flex-col gap-5 rounded-aib bg-aib-surface-dark p-5 shadow-lg sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby="text-mark-title"
+        onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3">
           <Label
@@ -65,7 +69,7 @@ export function TextMarkDialog({
         <div className="flex gap-2">
           <Button
             type="button"
-            variant="ghost"
+            variant="secondary"
             size="sm"
             className="flex-1"
             onClick={onCancel}

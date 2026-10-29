@@ -20,6 +20,7 @@ export const incidents = aibSitac.table('incidents', {
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
+  createdBy: text('created_by'),
   centerLng: doublePrecision('center_lng')
     .notNull()
     .default(DEFAULT_CENTER.lng),

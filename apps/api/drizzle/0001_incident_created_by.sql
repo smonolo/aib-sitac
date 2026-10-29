@@ -1,0 +1,1 @@
+ALTER TABLE "aib_sitac"."incidents" ADD COLUMN "created_by" text;

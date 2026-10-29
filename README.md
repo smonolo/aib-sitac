@@ -12,11 +12,11 @@ App: [aib-sitac.smnl.dev](https://aib-sitac.smnl.dev) · Marketing: [smnl.dev/ai
 
 ## Features (v1)
 
-- Create an **intervento** room (optional password); browse rooms from the home list (search, date filter, pagination); rename / set or remove password from the map sidebar; share the link
-- Curated symbol palette with tactical-style icons (hotspot, active front, burned area, water, lookout, PC/ROS, vehicle, squad, road closed, wind, note) — unofficial, not institutional symbology
+- Create an **intervento** room (optional password); open rooms from the home card (**Cerca** list with title search + pagination, or **Crea**); rename / set or remove password from the map sidebar; share the link
+- Curated symbol palette with tactical-style icons (hotspot, active front, burned area, water, lookout, posto di comando, vehicle, squad, road closed, wind, note) — unofficial, not institutional symbology
 - **Cursore** mode to select marks; draw **Freccia** / **Forma** / **Testo** (plus tactical symbols); soft-delete via tombstone events
 - **Append-only event log** in PostgreSQL → every mark add/remove is an automatic timeline step (scrubber / ← → / `?step=N`), with the local profile name recorded as `actorLabel`; **Copia link** shares the current step when scrubbing
-- Shared site **navbar/footer** on every page; map **left sidebar** = cursore + symbols, **right sidebar** = timeline / export / room actions
+- Home + map: no site navbar/footer. **Home** = centered card with **Cerca** / **Crea**, About + profile. **Map** left = logo + intervento info + cursore/symbols + room actions + About + profile; **top-center floating timeline**, **bottom-center floating control** = short label + info modal / finish / cancel / delete. Privacy/Termini keep navbar + footer
 - **Dark mode only** (v1 UI)
 - Export **GeoJSON** and map **PNG**
 - Realtime updates via SSE (password-protected rooms poll)
@@ -80,4 +80,4 @@ npm run db:migrate    # optional; API startup also migrates
 
 ## Privacy notes
 
-Intervento geometry and history live in your database. Password is optional; the home list (title, date, protected flag) is public. See [PRIVACY.md](./PRIVACY.md) and [TERMS.md](./TERMS.md).
+Intervento geometry and history live in your database. Password is optional; the home list (title, date, optional creator, protected flag) is public. See [PRIVACY.md](./PRIVACY.md) and [TERMS.md](./TERMS.md).

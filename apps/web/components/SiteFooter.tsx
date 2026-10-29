@@ -23,7 +23,7 @@ export function SiteFooter() {
   return (
     <footer className="w-full shrink-0 border-t border-aib-border-dark bg-aib-canvas-inverse">
       <div
-        className="flex w-full flex-col gap-2 px-4 py-3 text-[13px] font-medium text-aib-muted-dark sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-5"
+        className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-[13px] font-medium text-aib-muted-dark sm:px-5"
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
       >
         <nav
@@ -45,23 +45,6 @@ export function SiteFooter() {
             {c.terms}
           </Link>
         </nav>
-
-        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 sm:justify-end">
-          <a
-            href="https://smnl.dev"
-            className="aib-link"
-            target="_blank"
-            rel="noreferrer"
-          >
-            smnl.dev
-          </a>
-          <a
-            href="mailto:stefano@smnl.dev"
-            className="aib-link break-all sm:break-normal"
-          >
-            stefano@smnl.dev
-          </a>
-        </div>
       </div>
     </footer>
   )

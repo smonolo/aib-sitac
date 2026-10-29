@@ -80,7 +80,7 @@ export const SYMBOL_CATALOG: readonly SymbolDef[] = [
     id: 'command_post',
     geometry: 'point',
     color: '#264653',
-    label: 'PC / ROS',
+    label: 'Posto di comando',
   },
   {
     id: 'vehicle',

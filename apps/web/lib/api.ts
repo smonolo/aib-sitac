@@ -36,6 +36,7 @@ type CreateIncidentInput = {
   centerLat?: number
   zoom?: number
   passphrase?: string | null
+  createdBy?: string | null
 }
 
 function headers(passphrase?: string | null): HeadersInit {

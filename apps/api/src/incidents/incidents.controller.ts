@@ -26,6 +26,7 @@ const createSchema = z
     centerLat: z.number().finite().min(-90).max(90).optional(),
     zoom: z.number().finite().min(1).max(19).optional(),
     passphrase: z.string().min(4).max(200).optional().nullable(),
+    createdBy: z.string().min(1).max(80).optional().nullable(),
   })
   .strict()
 

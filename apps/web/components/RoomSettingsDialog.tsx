@@ -118,12 +118,16 @@ export function RoomSettingsDialog({
   }
 
   return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center bg-aib-canvas-inverse/70 p-4">
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-aib-canvas-inverse/70 p-4"
+      onClick={onClose}
+    >
       <div
         className="flex w-full max-w-sm flex-col gap-5 rounded-aib bg-aib-surface-dark p-5 shadow-lg sm:p-6"
         role="dialog"
         aria-modal="true"
         aria-labelledby="room-settings-title"
+        onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3">
           <h2
@@ -161,7 +165,7 @@ export function RoomSettingsDialog({
         <div className="flex flex-col gap-2 border-t border-aib-border-dark pt-4">
           <Label htmlFor="room-pass">{c.roomPassLabel}</Label>
           <p className="text-[12px] leading-snug text-aib-muted-dark">
-            {incident.hasPassphrase ? c.roomPassProtected : c.roomPassOpen}
+            {incident.hasPassphrase ? c.roomPassProtected : c.roomPassOpenHint}
           </p>
           <Input
             id="room-pass"
@@ -184,7 +188,7 @@ export function RoomSettingsDialog({
             </Button>
             <Button
               type="button"
-              variant="ghost"
+              variant="secondary"
               size="sm"
               className="flex-1"
               disabled={busy || !incident.hasPassphrase}
