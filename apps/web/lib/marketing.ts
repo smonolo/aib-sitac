@@ -1,4 +1,4 @@
-const MARKETING_ORIGIN = 'https://smnl.dev/aib-sitac'
+const MARKETING_ORIGIN = 'https://aib.smnl.dev/sitac'
 
 export const MARKETING_URLS = {
   guide: `${MARKETING_ORIGIN}/guide`,

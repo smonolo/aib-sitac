@@ -8,7 +8,7 @@ Independent, unofficial **tactical situation map (SITAC)** for wildfires / **inc
 
 License: [PolyForm Noncommercial 1.0.0](./LICENSE) · UI: Italian · timestamps: `Europe/Rome`
 
-App: [aib-sitac.smnl.dev](https://aib-sitac.smnl.dev) · Marketing: [smnl.dev/aib-sitac](https://smnl.dev/aib-sitac) ([Guida](https://smnl.dev/aib-sitac/guide) · [Privacy](https://smnl.dev/aib-sitac/privacy) · [Termini](https://smnl.dev/aib-sitac/terms))
+App: [aib-sitac.smnl.dev](https://aib-sitac.smnl.dev) · Marketing: [aib.smnl.dev/sitac](https://aib.smnl.dev/sitac) ([Guida](https://aib.smnl.dev/sitac/guide) · [Privacy](https://aib.smnl.dev/sitac/privacy) · [Termini](https://aib.smnl.dev/sitac/terms))
 
 ## Features (v1)
 
@@ -16,7 +16,7 @@ App: [aib-sitac.smnl.dev](https://aib-sitac.smnl.dev) · Marketing: [smnl.dev/ai
 - Curated symbol palette with Lucide icons (hotspot, active front, burned area, water, lookout, posto di comando, vehicle, squad, road closed, wind, note) — unofficial, not institutional symbology
 - **Cursore** mode to select marks; **Sposta** to drag-reposition then **Termina** (live only); **Modifica** to edit text-mark labels; draw **Freccia** / **Forma** / **Testo** (plus tactical symbols); soft-delete via tombstone events
 - **Append-only event log** in PostgreSQL → every mark upsert/delete is an automatic timeline step (scrubber / ← → / `?step=N`), with the local profile name recorded as `actorLabel`; **Copia link** shares the current step when scrubbing
-- Home + map: no site navbar/footer; works on phone and desktop. **Home** = centered card with **Cerca** / **Crea**, About + theme + profile. **Map** sidebar (drawer on mobile) = logo + intervento info + cursore/symbols + room actions + About + profile/theme; floating timeline + mark controls. Guida / Privacy / Termini open on the marketing site (`smnl.dev/aib-sitac/…`); old `/privacy` and `/terms` app paths redirect there
+- Home + map: no site navbar/footer; works on phone and desktop. **Home** = centered card with **Cerca** / **Crea**, About + theme + profile. **Map** sidebar (drawer on mobile) = logo + intervento info + cursore/symbols + room actions + About + profile/theme; floating timeline + mark controls. Guida / Privacy / Termini open on the marketing site (`aib.smnl.dev/sitac/…`); old `/privacy` and `/terms` app paths redirect there
 - **Light and dark** UI (follows system by default; toggle on home and in the map sidebar)
 - Export **GeoJSON** and map **PNG**
 - Realtime updates via SSE (password-protected rooms poll; SSE drops if a password is set/changed)

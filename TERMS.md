@@ -10,4 +10,4 @@ AIB SITAC is an unofficial volunteer tool for tactical wildfire mapping. It does
 4. The service may change, break, or be withdrawn without notice.
 5. Do not abuse the API (automated scraping, spam room creation, attempts to break password protection).
 
-Contact: [stefano@smnl.dev](mailto:stefano@smnl.dev) · [smnl.dev/aib-sitac/terms](https://smnl.dev/aib-sitac/terms)
+Contact: [stefano@smnl.dev](mailto:stefano@smnl.dev) · [aib.smnl.dev/sitac/terms](https://aib.smnl.dev/sitac/terms)

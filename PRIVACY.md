@@ -4,7 +4,7 @@
 
 AIB SITAC is an independent, unofficial web app for tactical wildfire (incendio boschivo) situation maps. It is open to anyone and is **not** affiliated with Protezione Civile, Vigili del Fuoco, Regione Lombardia, or any other public institution.
 
-Hosted policy URL: [smnl.dev/aib-sitac/privacy](https://smnl.dev/aib-sitac/privacy)
+Hosted policy URL: [aib.smnl.dev/sitac/privacy](https://aib.smnl.dev/sitac/privacy)
 
 ## Summary
 
@@ -16,7 +16,7 @@ Hosted policy URL: [smnl.dev/aib-sitac/privacy](https://smnl.dev/aib-sitac/priva
 - Theme preference (`system` / `light` / `dark`) is stored in browser `localStorage` when you change it from the default (system).
 - Loading the map fetches raster tiles from Humanitarian OSM / openstreetmap.fr; that provider may see your IP and the tile coordinates you request.
 - After unlocking a protected room, the password is kept in browser `sessionStorage` for that room (cleared when the browser session ends); it is never put in the URL.
-- Guida, Privacy, and Termini in the app open on the marketing site ([smnl.dev/aib-sitac](https://smnl.dev/aib-sitac)); the app has no in-app copies of those pages.
+- Guida, Privacy, and Termini in the app open on the marketing site ([aib.smnl.dev/sitac](https://aib.smnl.dev/sitac)); the app has no in-app copies of those pages.
 
 ## Data processed
 
