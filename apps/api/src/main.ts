@@ -13,6 +13,7 @@ loadEnv({ path: resolve(__dirname, '../../../.env') })
 
 const CORS_ORIGINS = [
   'https://aib-sitac.smnl.dev',
+  'https://sitac.aib.smnl.dev',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
 ] as const

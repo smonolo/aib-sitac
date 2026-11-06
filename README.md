@@ -8,7 +8,7 @@ Independent, unofficial **tactical situation map (SITAC)** for wildfires / **inc
 
 License: [PolyForm Noncommercial 1.0.0](./LICENSE) · UI: Italian · timestamps: `Europe/Rome`
 
-App: [aib-sitac.smnl.dev](https://aib-sitac.smnl.dev) · Marketing: [aib.smnl.dev/sitac](https://aib.smnl.dev/sitac) ([Guida](https://aib.smnl.dev/sitac/guide) · [Privacy](https://aib.smnl.dev/sitac/privacy) · [Termini](https://aib.smnl.dev/sitac/terms))
+App: [sitac.aib.smnl.dev](https://sitac.aib.smnl.dev) · Marketing: [aib.smnl.dev/sitac](https://aib.smnl.dev/sitac) ([Guida](https://aib.smnl.dev/sitac/guide) · [Privacy](https://aib.smnl.dev/sitac/privacy) · [Termini](https://aib.smnl.dev/sitac/terms))
 
 ## Features (v1)
 
