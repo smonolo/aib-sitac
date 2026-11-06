@@ -7,14 +7,14 @@ import {
 import { SYMBOL_ICONS } from './symbol-icons'
 
 describe('symbol icons', () => {
-  test('every catalog symbol maps to a Lucide icon', () => {
+  test('every catalog symbol maps to a Solar icon', () => {
     for (const id of SYMBOL_IDS) {
       expect(typeof SYMBOL_ICONS[id]).toBe('object')
       expect(SYMBOL_ICONS[id]).toBeTruthy()
     }
   })
 
-  test('every catalog symbol produces lucide-backed svg and data url', () => {
+  test('every catalog symbol produces solar-backed svg and data url', () => {
     for (const id of SYMBOL_IDS) {
       const svg = symbolIconSvg(id, '#AF2525')
       expect(svg).toMatch(/^<svg /)

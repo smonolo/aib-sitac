@@ -1,7 +1,7 @@
 'use client'
 
 import { type FormEvent } from 'react'
-import { X } from 'lucide-react'
+import { AppIcon } from '@/components/icons/app-icon'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
 import { Input } from '@/components/ui/input'
@@ -54,7 +54,7 @@ export function TextMarkDialog({
             {c.textDialogTitle}
           </Label>
           <IconButton aria-label={c.textDialogCancel} onClick={onCancel}>
-            <X />
+            <AppIcon name="close" size={20} />
           </IconButton>
         </div>
         <Input

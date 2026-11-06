@@ -1,6 +1,6 @@
 'use client'
 
-import { X } from 'lucide-react'
+import { AppIcon } from '@/components/icons/app-icon'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
 import { t } from '@/lib/i18n'
@@ -42,7 +42,7 @@ export function DeleteMarkDialog({
             onClick={onCancel}
             disabled={busy}
           >
-            <X />
+            <AppIcon name="close" size={20} />
           </IconButton>
         </div>
 

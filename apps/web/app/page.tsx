@@ -3,10 +3,10 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { CircleHelp, Lock, User } from 'lucide-react'
 import { DEFAULT_CENTER, type SitacIncident } from '@aib-sitac/core'
 import { AboutDialog } from '@/components/AboutDialog'
 import { ActorDialog } from '@/components/ActorDialog'
+import { AppIcon } from '@/components/icons/app-icon'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -225,10 +225,13 @@ export default function HomePage() {
                           </span>
                         </span>
                         {incident.hasPassphrase ? (
-                          <Lock
-                            className="size-3.5 shrink-0 text-aib-muted dark:text-aib-muted-dark"
+                          <span
+                            className="inline-flex text-aib-muted dark:text-aib-muted-dark"
+                            role="img"
                             aria-label={c.incidentsLocked}
-                          />
+                          >
+                            <AppIcon name="lock" size={14} />
+                          </span>
                         ) : null}
                       </button>
                     </li>
@@ -307,7 +310,7 @@ export default function HomePage() {
               className="gap-1.5 text-aib-muted dark:text-aib-muted-dark"
               onClick={() => setAboutOpen(true)}
             >
-              <CircleHelp className="size-3.5 shrink-0" aria-hidden />
+              <AppIcon name="help" size={14} />
               {c.aboutOpen}
             </Button>
             <ThemeToggle />
@@ -320,7 +323,7 @@ export default function HomePage() {
             aria-label={c.actorDialogOpen}
             onClick={() => setActorOpen(true)}
           >
-            <User className="size-3.5 shrink-0" aria-hidden />
+            <AppIcon name="user" size={14} />
             <span className="truncate">
               {profileActor.trim() || c.actorDialogOpen}
             </span>

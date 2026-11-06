@@ -9,22 +9,6 @@ import type {
   MapMouseEvent,
 } from 'maplibre-gl'
 import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  CircleHelp,
-  Download,
-  Info,
-  Link2,
-  Lock,
-  Menu,
-  MousePointer2,
-  Settings,
-  User,
-  X,
-} from 'lucide-react'
-import {
   SYMBOL_CATALOG,
   featuresToGeoJson,
   foldFeatures,
@@ -44,6 +28,7 @@ import { AboutDialog } from '@/components/AboutDialog'
 import { ActorDialog } from '@/components/ActorDialog'
 import { DeleteMarkDialog } from '@/components/DeleteMarkDialog'
 import { ExportDialog } from '@/components/ExportDialog'
+import { AppIcon } from '@/components/icons/app-icon'
 import { MarkInfoDialog } from '@/components/MarkInfoDialog'
 import { RoomSettingsDialog } from '@/components/RoomSettingsDialog'
 import { TextMarkDialog } from '@/components/TextMarkDialog'
@@ -941,7 +926,7 @@ export function SitacMap({
     }
     if (selectMode) {
       return {
-        icon: <MousePointer2 className="size-5" aria-hidden />,
+        icon: <AppIcon name="cursor" size={20} />,
         title: c.selectTool,
         purpose: c.selectToolPurpose,
         howTo: c.selectToolHow,
@@ -1036,7 +1021,7 @@ export function SitacMap({
             aria-label={c.menuClose}
             onClick={() => setMenuOpen(false)}
           >
-            <X className="size-4" aria-hidden />
+            <AppIcon name="close" size={16} />
           </Button>
         </div>
 
@@ -1049,10 +1034,13 @@ export function SitacMap({
               {incident.title}
             </h2>
             {incident.hasPassphrase ? (
-              <Lock
-                className="size-3.5 shrink-0 text-aib-muted dark:text-aib-muted-dark"
+              <span
+                className="inline-flex text-aib-muted dark:text-aib-muted-dark"
+                role="img"
                 aria-label={c.roomPassProtected}
-              />
+              >
+                <AppIcon name="lock" size={14} />
+              </span>
             ) : null}
           </div>
           {error ? (
@@ -1078,7 +1066,7 @@ export function SitacMap({
                   selectMode ? 'aib-tool-btn-active' : 'aib-tool-btn-idle'
                 )}
               >
-                <MousePointer2 className="size-[26px] shrink-0" aria-hidden />
+                <AppIcon name="cursor" size={18} />
                 <span className="min-w-0 flex-1 truncate">{c.selectTool}</span>
               </button>
             </div>
@@ -1116,7 +1104,7 @@ export function SitacMap({
               disabled={locked || !live}
               onClick={() => setSettingsOpen(true)}
             >
-              <Settings className="size-4 shrink-0" aria-hidden />
+              <AppIcon name="settings" size={16} />
               {c.roomSettingsOpen}
             </Button>
             <Button
@@ -1125,7 +1113,7 @@ export function SitacMap({
               className="w-full gap-2.5"
               onClick={() => void copyLink()}
             >
-              <Link2 className="size-4 shrink-0" aria-hidden />
+              <AppIcon name="link" size={16} />
               {copied ? c.copied : c.shareLink}
             </Button>
             <Button
@@ -1135,7 +1123,7 @@ export function SitacMap({
               disabled={locked}
               onClick={() => setExportOpen(true)}
             >
-              <Download className="size-4 shrink-0" aria-hidden />
+              <AppIcon name="download" size={16} />
               {c.exportOpen}
             </Button>
             <Button
@@ -1144,7 +1132,7 @@ export function SitacMap({
               className="w-full gap-2.5"
               onClick={() => setAboutOpen(true)}
             >
-              <CircleHelp className="size-4 shrink-0" aria-hidden />
+              <AppIcon name="help" size={16} />
               {c.aboutOpen}
             </Button>
           </div>
@@ -1156,7 +1144,7 @@ export function SitacMap({
               aria-label={c.actorDialogOpen}
               onClick={() => setActorOpen(true)}
             >
-              <User className="size-4 shrink-0" aria-hidden />
+              <AppIcon name="user" size={16} />
               <span className="min-w-0 truncate">
                 {profileActor.trim() || c.actorDialogOpen}
               </span>
@@ -1186,7 +1174,7 @@ export function SitacMap({
             aria-controls="sitac-room-menu"
             onClick={() => setMenuOpen(true)}
           >
-            <Menu aria-hidden />
+            <AppIcon name="menu" size={20} />
           </Button>
 
           <div className="pointer-events-none absolute top-[max(0.75rem,env(safe-area-inset-top))] right-[max(0.75rem,env(safe-area-inset-right))] left-[max(3.5rem,calc(env(safe-area-inset-left)+3.25rem))] z-10 flex justify-center md:left-[max(0.75rem,env(safe-area-inset-left))]">
@@ -1205,7 +1193,7 @@ export function SitacMap({
                   onClick={() => goToMarkStep(0)}
                   className="aib-quiet-btn flex h-8 w-6 shrink-0 items-center justify-center !px-0"
                 >
-                  <ChevronsLeft className="size-4" aria-hidden />
+                  <AppIcon name="chevronsLeft" size={16} />
                 </button>
                 <button
                   type="button"
@@ -1216,7 +1204,7 @@ export function SitacMap({
                   onClick={() => goToMarkStep(scrubIndex - 1)}
                   className="aib-quiet-btn flex h-8 w-6 shrink-0 items-center justify-center !px-0"
                 >
-                  <ChevronLeft className="size-4" aria-hidden />
+                  <AppIcon name="chevronLeft" size={16} />
                 </button>
                 <Slider
                   className="min-w-0 flex-1 sm:w-40 sm:flex-none md:w-48"
@@ -1240,7 +1228,7 @@ export function SitacMap({
                   onClick={() => goToMarkStep(scrubIndex + 1)}
                   className="aib-quiet-btn flex h-8 w-6 shrink-0 items-center justify-center !px-0"
                 >
-                  <ChevronRight className="size-4" aria-hidden />
+                  <AppIcon name="chevronRight" size={16} />
                 </button>
                 <button
                   type="button"
@@ -1253,7 +1241,7 @@ export function SitacMap({
                   onClick={() => goToMarkStep(markEvents.length - 1)}
                   className="aib-quiet-btn flex h-8 w-6 shrink-0 items-center justify-center !px-0"
                 >
-                  <ChevronsRight className="size-4" aria-hidden />
+                  <AppIcon name="chevronsRight" size={16} />
                 </button>
                 <p className="w-10 shrink-0 text-right text-[12px] text-aib-muted tabular-nums dark:text-aib-muted-dark">
                   {formatStepOf(
@@ -1343,7 +1331,7 @@ export function SitacMap({
                       onClick={() => setMarkInfoOpen(true)}
                       className="size-8 [&_svg]:size-4"
                     >
-                      <Info />
+                      <AppIcon name="info" size={16} />
                     </IconButton>
                   </div>
                 ) : null}

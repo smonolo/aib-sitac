@@ -1,6 +1,6 @@
 'use client'
 
-import { BookOpen, FileText, Scale, X } from 'lucide-react'
+import { AppIcon } from '@/components/icons/app-icon'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
 import { t } from '@/lib/i18n'
@@ -34,7 +34,7 @@ export function AboutDialog({ open, onClose }: Props) {
             {c.aboutTitle}
           </h2>
           <IconButton aria-label={c.aboutClose} onClick={onClose}>
-            <X />
+            <AppIcon name="close" size={20} />
           </IconButton>
         </div>
 
@@ -49,7 +49,7 @@ export function AboutDialog({ open, onClose }: Props) {
             className="w-full gap-2.5"
             onClick={() => openMarketing(MARKETING_URLS.guide)}
           >
-            <BookOpen className="size-[18px] shrink-0" aria-hidden />
+            <AppIcon name="book" size={18} />
             {c.guide}
           </Button>
           <Button
@@ -58,7 +58,7 @@ export function AboutDialog({ open, onClose }: Props) {
             className="w-full gap-2.5"
             onClick={() => openMarketing(MARKETING_URLS.privacy)}
           >
-            <FileText className="size-[18px] shrink-0" aria-hidden />
+            <AppIcon name="document" size={18} />
             {c.privacy}
           </Button>
           <Button
@@ -67,7 +67,7 @@ export function AboutDialog({ open, onClose }: Props) {
             className="w-full gap-2.5"
             onClick={() => openMarketing(MARKETING_URLS.terms)}
           >
-            <Scale className="size-[18px] shrink-0" aria-hidden />
+            <AppIcon name="notes" size={18} />
             {c.terms}
           </Button>
         </div>

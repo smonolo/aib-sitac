@@ -1,44 +1,62 @@
-import { createElement, type ReactElement } from 'react'
-import type { LucideIcon } from 'lucide-react'
+import { type ReactElement, type ReactNode } from 'react'
 import type { SymbolId } from '@aib-sitac/core'
 import { markGlyphColor } from '@/lib/mark-icon-color'
+import { solarIconChildren } from '@/lib/solar-icon'
 import { SYMBOL_ICONS } from '@/lib/symbol-icons'
 
 const SIZE = 64
 const GLYPH_PAD = 12
 const GLYPH_SIZE = SIZE - GLYPH_PAD * 2
-const LUCIDE_VIEW = 24
+const ICON_VIEW = 24
 
-type IconNode = readonly (readonly [string, Record<string, string>])[]
-
-function lucideIconNode(Icon: LucideIcon): IconNode {
-  const element = createElement(Icon, {}) as ReactElement
-  const type = element.type as unknown as {
-    render: (
-      props: object,
-      ref: null
-    ) => ReactElement<{ icon: { node: IconNode } }>
-  }
-  return type.render(element.props as object, null).props.icon.node
+function attrName(key: string): string {
+  if (key === 'className') return 'class'
+  if (key === 'strokeWidth') return 'stroke-width'
+  if (key === 'strokeLinecap') return 'stroke-linecap'
+  if (key === 'strokeLinejoin') return 'stroke-linejoin'
+  if (key === 'strokeDasharray') return 'stroke-dasharray'
+  if (key === 'strokeDashoffset') return 'stroke-dashoffset'
+  if (key === 'strokeMiterlimit') return 'stroke-miterlimit'
+  if (key === 'fillRule') return 'fill-rule'
+  if (key === 'clipRule') return 'clip-rule'
+  if (key === 'clipPath') return 'clip-path'
+  return key.replace(/([A-Z])/g, '-$1').toLowerCase()
 }
 
-function iconNodeToSvg(node: IconNode): string {
-  return node
-    .map(([tag, attrs]) => {
-      const attrStr = Object.entries(attrs)
-        .filter(([key]) => key !== 'key')
-        .map(([key, value]) => `${key}="${value}"`)
-        .join(' ')
-      return `<${tag} ${attrStr}/>`
-    })
-    .join('')
+function elementToSvg(node: ReactNode): string {
+  if (node == null || typeof node === 'boolean') return ''
+  if (Array.isArray(node)) return node.map(elementToSvg).join('')
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (typeof node !== 'object' || !('type' in node)) return ''
+  const el = node as ReactElement<
+    { children?: ReactNode } & Record<string, unknown>
+  >
+  if (typeof el.type !== 'string') return ''
+  const { children, ...attrs } = el.props
+  const attrStr = Object.entries(attrs)
+    .filter(
+      ([key, value]) =>
+        key !== 'key' &&
+        value != null &&
+        typeof value !== 'function' &&
+        typeof value !== 'object'
+    )
+    .map(([key, value]) => `${attrName(key)}="${String(value)}"`)
+    .join(' ')
+  const inner = elementToSvg(children)
+  if (inner) {
+    return attrStr
+      ? `<${el.type} ${attrStr}>${inner}</${el.type}>`
+      : `<${el.type}>${inner}</${el.type}>`
+  }
+  return attrStr ? `<${el.type} ${attrStr}/>` : `<${el.type}/>`
 }
 
 function badgeSvg(color: string, glyph: string): string {
   const stroke = markGlyphColor(color)
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">
   <rect width="${SIZE}" height="${SIZE}" rx="12" ry="12" fill="${color}"/>
-  <svg x="${GLYPH_PAD}" y="${GLYPH_PAD}" width="${GLYPH_SIZE}" height="${GLYPH_SIZE}" viewBox="0 0 ${LUCIDE_VIEW} ${LUCIDE_VIEW}" fill="none" stroke="${stroke}" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">${glyph}</svg>
+  <svg x="${GLYPH_PAD}" y="${GLYPH_PAD}" width="${GLYPH_SIZE}" height="${GLYPH_SIZE}" viewBox="0 0 ${ICON_VIEW} ${ICON_VIEW}" fill="none" color="${stroke}" stroke="${stroke}" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">${glyph}</svg>
 </svg>`
 }
 
@@ -49,7 +67,7 @@ function iconImageId(symbolId: string): string {
 }
 
 export function symbolIconSvg(id: SymbolId, color: string): string {
-  const glyph = iconNodeToSvg(lucideIconNode(SYMBOL_ICONS[id]))
+  const glyph = elementToSvg(solarIconChildren(SYMBOL_ICONS[id]))
   return badgeSvg(color, glyph)
 }
 

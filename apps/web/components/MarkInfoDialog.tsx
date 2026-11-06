@@ -1,8 +1,8 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { X } from 'lucide-react'
 import type { SymbolId } from '@aib-sitac/core'
+import { AppIcon } from '@/components/icons/app-icon'
 import { MarkIcon, markIconSize } from '@/components/MarkIcon'
 import { IconButton } from '@/components/ui/icon-button'
 import { t } from '@/lib/i18n'
@@ -71,7 +71,7 @@ export function MarkInfoDialog({
             </div>
           </div>
           <IconButton aria-label={c.markInfoClose} onClick={onClose}>
-            <X />
+            <AppIcon name="close" size={20} />
           </IconButton>
         </div>
 

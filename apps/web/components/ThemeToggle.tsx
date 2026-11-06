@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Monitor, Moon, Sun } from 'lucide-react'
+import { AppIcon, type AppIconName } from '@/components/icons/app-icon'
 import { Button } from '@/components/ui/button'
 import { t } from '@/lib/i18n'
 import {
@@ -15,6 +15,12 @@ import { cn } from '@/lib/utils'
 type Props = {
   className?: string
   size?: 'xs' | 'sm'
+}
+
+function themeIcon(preference: ThemePreference): AppIconName {
+  if (preference === 'light') return 'sun'
+  if (preference === 'dark') return 'moon'
+  return 'devices'
 }
 
 export function ThemeToggle({ className, size = 'xs' }: Props) {
@@ -41,8 +47,6 @@ export function ThemeToggle({ className, size = 'xs' }: Props) {
         : c.themeSystem
 
   const aria = `${c.themeToggle}: ${label}`
-  const Icon =
-    preference === 'light' ? Sun : preference === 'dark' ? Moon : Monitor
 
   return (
     <Button
@@ -61,7 +65,7 @@ export function ThemeToggle({ className, size = 'xs' }: Props) {
         setPreference(next)
       }}
     >
-      <Icon className="size-3.5 shrink-0" aria-hidden />
+      <AppIcon name={themeIcon(preference)} size={14} strokeWidth={1.75} />
       <span className="sr-only">{label}</span>
     </Button>
   )

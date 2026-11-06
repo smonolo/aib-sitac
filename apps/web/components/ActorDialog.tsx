@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, type FormEvent } from 'react'
-import { X } from 'lucide-react'
+import { AppIcon } from '@/components/icons/app-icon'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
 import { Input } from '@/components/ui/input'
@@ -60,7 +60,7 @@ export function ActorDialog({ open, onClose, onChange }: Props) {
             {c.actorDialogTitle}
           </h2>
           <IconButton aria-label={c.textDialogCancel} onClick={onClose}>
-            <X />
+            <AppIcon name="close" size={20} />
           </IconButton>
         </div>
 

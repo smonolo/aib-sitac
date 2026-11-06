@@ -62,7 +62,7 @@ export function MarkIcon({
       }
       aria-hidden
     >
-      <Icon size={glyph} strokeWidth={2.25} absoluteStrokeWidth={false} />
+      <Icon size={glyph} color="currentColor" strokeWidth={2.25} />
     </span>
   )
 }

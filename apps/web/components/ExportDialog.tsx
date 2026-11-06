@@ -1,6 +1,6 @@
 'use client'
 
-import { Braces, Image as ImageIcon, X } from 'lucide-react'
+import { AppIcon } from '@/components/icons/app-icon'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/icon-button'
 import { t } from '@/lib/i18n'
@@ -42,7 +42,7 @@ export function ExportDialog({
             onClick={onClose}
             disabled={busy}
           >
-            <X />
+            <AppIcon name="close" size={20} />
           </IconButton>
         </div>
 
@@ -54,7 +54,7 @@ export function ExportDialog({
             disabled={busy}
             onClick={onExportGeoJson}
           >
-            <Braces className="size-[18px] shrink-0" aria-hidden />
+            <AppIcon name="braces" size={18} />
             {c.exportGeoJson}
           </Button>
           <Button
@@ -64,7 +64,7 @@ export function ExportDialog({
             disabled={busy}
             onClick={onExportPng}
           >
-            <ImageIcon className="size-[18px] shrink-0" aria-hidden />
+            <AppIcon name="gallery" size={18} />
             {c.exportPng}
           </Button>
         </div>
